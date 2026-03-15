@@ -33,6 +33,41 @@ def main():
         asyncio.run(run_demo_journey(target_name=target, use_real_analysis=use_ai))
         return
 
+    if cmd == "live":
+        # Real mystery shopping against actual targets
+        import asyncio
+        from .orchestrator.real_journey import run_real_journey
+        target = "Hotel"
+        website = ""
+        email_addr = ""
+        phone = ""
+        whatsapp = ""
+        i = 1
+        while i < len(args):
+            if args[i] == "--target" and i + 1 < len(args):
+                target = args[i + 1]; i += 2
+            elif args[i] == "--website" and i + 1 < len(args):
+                website = args[i + 1]; i += 2
+            elif args[i] == "--email" and i + 1 < len(args):
+                email_addr = args[i + 1]; i += 2
+            elif args[i] == "--phone" and i + 1 < len(args):
+                phone = args[i + 1]; i += 2
+            elif args[i] == "--whatsapp" and i + 1 < len(args):
+                whatsapp = args[i + 1]; i += 2
+            else:
+                i += 1
+        if not website:
+            print("Error: --website is required for live journey")
+            return
+        asyncio.run(run_real_journey(
+            target_name=target,
+            target_website=website,
+            target_email=email_addr,
+            target_phone=phone,
+            target_whatsapp=whatsapp,
+        ))
+        return
+
     if cmd == "demo":
         from .demo import run_demo
         quality = "average"
