@@ -8,13 +8,30 @@ def main():
         print("🕵️  AI Mystery Shopper")
         print()
         print("Commands:")
-        print("  demo [--quality good|average|poor] [--target 'Name']  Run demo")
+        print("  journey [--target 'Name'] [--no-ai]                    Run full journey demo ⭐")
+        print("  demo [--quality good|average|poor] [--target 'Name']   Run single-channel demo")
         print("  serve [--port 8000]                                    Start web dashboard")
         print("  email <target@email.com> [--target 'Name']            Send test email")
         print("  phone <+number> [--target 'Name']                     Make test call")
         return
 
     cmd = args[0]
+
+    if cmd == "journey":
+        import asyncio
+        from .orchestrator.demo_journey import run_demo_journey
+        target = "The Grand Hotel London"
+        use_ai = True
+        i = 1
+        while i < len(args):
+            if args[i] == "--target" and i + 1 < len(args):
+                target = args[i + 1]; i += 2
+            elif args[i] == "--no-ai":
+                use_ai = False; i += 1
+            else:
+                i += 1
+        asyncio.run(run_demo_journey(target_name=target, use_real_analysis=use_ai))
+        return
 
     if cmd == "demo":
         from .demo import run_demo
