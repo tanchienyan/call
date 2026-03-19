@@ -1,0 +1,270 @@
+{
+  "journey": {
+    "overall_score": 58,
+    "steps_total": 9,
+    "steps_completed": 9,
+    "steps_skipped": 0,
+    "steps_failed": 0,
+    "steps": [
+      {
+        "step_name": "Browse Hotel Website",
+        "step_type": "browse_website",
+        "status": "completed",
+        "started_at": "2026-03-15T00:36:45.539728",
+        "completed_at": "2026-03-15T00:36:47.699575",
+        "data_sent": "",
+        "data_received": "Homepage, Rooms page, About page browsed. 4 room types found.",
+        "response_time_seconds": null,
+        "screenshots": [
+          "data/demo/homepage.png",
+          "data/demo/rooms.png"
+        ],
+        "scores": {
+          "overall": 78
+        },
+        "notes": "Good website with booking widget and live chat. Room info could be more detailed."
+      },
+      {
+        "step_name": "Webchat Inquiry",
+        "step_type": "webchat",
+        "status": "completed",
+        "started_at": "2026-03-15T00:36:47.699703",
+        "completed_at": "2026-03-15T00:36:50.905359",
+        "data_sent": "Hi, I'm looking for a quiet room on a high floor, next Thursday to Sunday. Do you have availability?",
+        "data_received": "Agent: Hi Sarah! Welcome to The Grand Hotel. Yes, we do have availability for those dates! \nFor a quiet high-floor room, I'd recommend our Executive Room on the 8th floor. \nRates start from £249/night. Would you like me to check exact availability?\nI can also have our reservations team email you a detailed quote with any special offers we have running. \nCould I get your email address?",
+        "response_time_seconds": 45,
+        "screenshots": [],
+        "scores": {
+          "overall": 72
+        },
+        "notes": "Good response time (45s). Provided room suggestion. But redirected to email instead of closing on chat."
+      },
+      {
+        "step_name": "Email Inquiry",
+        "step_type": "send_email",
+        "status": "completed",
+        "started_at": "2026-03-15T00:36:50.905796",
+        "completed_at": "2026-03-15T00:36:51.480653",
+        "data_sent": "Subject: Room availability inquiry - next Thursday to Sunday\n\nHi there,\n\nI'm looking to book a stay at your hotel:\n- Dates: next Thursday to Sunday (3 nights)  \n- Guests: 1 adult\n- Room preference: quiet room, high floor\n- Purpose: attending a tech conference nearby\n- Interested in: late checkout, gym/wifi\n\nI was chatting with Sophie on your website who suggested I email for the best rates.\n\nCould you let me know about availability and rates?\n\nBest regards,\nSarah Mitchell",
+        "data_received": "",
+        "response_time_seconds": null,
+        "screenshots": [],
+        "scores": {},
+        "notes": "Email sent successfully. Referenced webchat conversation for cross-channel continuity."
+      },
+      {
+        "step_name": "Wait for Email Reply",
+        "step_type": "wait_email",
+        "status": "completed",
+        "started_at": "2026-03-15T00:36:51.480767",
+        "completed_at": "2026-03-15T00:36:53.675895",
+        "data_sent": "",
+        "data_received": "Dear Sarah,\n\nThank you for your interest in The Grand Hotel.\n\nI can confirm availability for next Thursday to Sunday (3 nights). Here are our options:\n\n- Superior Room (7th floor): £199/night\n- Executive Room (8th floor, recommended): £259/night — includes lounge access and breakfast\n- Junior Suite (9th floor): £349/night\n\nWiFi is complimentary in all rooms, and our gym is open 24/7.\n\nLate checkout can usually be arranged until 2pm subject to availability.\n\nPlease let me know if you'd like to pr",
+        "response_time_seconds": 23400.0,
+        "screenshots": [],
+        "scores": {
+          "overall": 58
+        },
+        "notes": "Took 6.5 hours to reply (should be under 4). Good content but no mention of conference deal, no direct booking link, no urgency. Didn't reference the webchat conversation."
+      },
+      {
+        "step_name": "Phone Call",
+        "step_type": "phone_call",
+        "status": "completed",
+        "started_at": "2026-03-15T00:36:53.676112",
+        "completed_at": "2026-03-15T00:36:57.381986",
+        "data_sent": "AI called as Sarah Mitchell, referencing previous email",
+        "data_received": "[Ring x4]\nHotel: Grand Hotel, good afternoon, how can I help?\nSarah: Hi, I sent an email earlier about booking a room for next Thursday to Sunday. I just wanted to follow up and ask a couple more questions.\nHotel: Of course. Let me see... ah yes, I can see your email. The Executive Room, was it?\nSarah: Yes, that one looked good. I'm attending a conference nearby — do you have any conference rates or deals?\nHotel: Um, I'm not sure about specific conference rates. I'd have to check with my manager",
+        "response_time_seconds": 165,
+        "screenshots": [],
+        "scores": {
+          "overall": 65
+        },
+        "notes": "Answered in 4 rings (acceptable). Knew about the email (good cross-channel). But didn't know about conference rates, couldn't guarantee late checkout, didn't proactively upsell. No mention of direct booking benefits."
+      },
+      {
+        "step_name": "WhatsApp Message",
+        "step_type": "send_whatsapp",
+        "status": "completed",
+        "started_at": "2026-03-15T00:36:57.383527",
+        "completed_at": "2026-03-15T00:36:57.951169",
+        "data_sent": "Hi! I spoke with someone on the phone about booking a room for next Thu-Sun. Could you send me a confirmation of the rates discussed? Thanks, Sarah",
+        "data_received": "",
+        "response_time_seconds": null,
+        "screenshots": [],
+        "scores": {},
+        "notes": "WhatsApp message sent successfully"
+      },
+      {
+        "step_name": "Wait WhatsApp Reply",
+        "step_type": "wait_whatsapp",
+        "status": "completed",
+        "started_at": "2026-03-15T00:36:57.951314",
+        "completed_at": "2026-03-15T00:36:59.019275",
+        "data_sent": "",
+        "data_received": "Hi Sarah, thanks for reaching out! I can confirm Executive Room at £259/night for Thu-Sun. Shall I book it? You can also book directly at grandhotel.com/book. Best, Sophie",
+        "response_time_seconds": 11520.0,
+        "screenshots": [],
+        "scores": {
+          "overall": 70
+        },
+        "notes": "Replied in 3.2 hours (acceptable for WhatsApp). Referenced the correct room and rate. Provided booking link. But didn't mention conference rate or any extras."
+      },
+      {
+        "step_name": "Follow-up Monitoring",
+        "step_type": "wait_followup",
+        "status": "completed",
+        "started_at": "2026-03-15T00:36:59.020027",
+        "completed_at": "2026-03-15T00:37:01.779275",
+        "data_sent": "",
+        "data_received": "",
+        "response_time_seconds": 259200,
+        "screenshots": [],
+        "scores": {
+          "overall": 10
+        },
+        "notes": "Hotel did NOT follow up proactively within 72 hours. This is a major missed opportunity — the guest was clearly interested but didn't book. A simple 'Hi Sarah, just checking if you'd like to proceed?' could have converted this."
+      },
+      {
+        "step_name": "Full Journey Analysis",
+        "step_type": "analyze",
+        "status": "completed",
+        "started_at": "2026-03-15T00:37:01.780052",
+        "completed_at": "2026-03-15T00:37:01.780113",
+        "data_sent": "",
+        "data_received": "",
+        "response_time_seconds": null,
+        "screenshots": [],
+        "scores": {},
+        "notes": "Analysis complete"
+      }
+    ],
+    "log": [
+      {
+        "time": "2026-03-15T00:36:47.699637",
+        "message": "✅ Browse Hotel Website: completed"
+      },
+      {
+        "time": "2026-03-15T00:36:47.699665",
+        "message": "   Score: 78/100"
+      },
+      {
+        "time": "2026-03-15T00:36:50.905640",
+        "message": "✅ Webchat Inquiry: completed"
+      },
+      {
+        "time": "2026-03-15T00:36:50.905710",
+        "message": "   Score: 72/100"
+      },
+      {
+        "time": "2026-03-15T00:36:51.480705",
+        "message": "✅ Email Inquiry: completed"
+      },
+      {
+        "time": "2026-03-15T00:36:53.676007",
+        "message": "✅ Wait for Email Reply: completed"
+      },
+      {
+        "time": "2026-03-15T00:36:53.676052",
+        "message": "   Score: 58/100"
+      },
+      {
+        "time": "2026-03-15T00:36:57.382886",
+        "message": "✅ Phone Call: completed"
+      },
+      {
+        "time": "2026-03-15T00:36:57.383181",
+        "message": "   Score: 65/100"
+      },
+      {
+        "time": "2026-03-15T00:36:57.951240",
+        "message": "✅ WhatsApp Message: completed"
+      },
+      {
+        "time": "2026-03-15T00:36:59.019753",
+        "message": "✅ Wait WhatsApp Reply: completed"
+      },
+      {
+        "time": "2026-03-15T00:36:59.019932",
+        "message": "   Score: 70/100"
+      },
+      {
+        "time": "2026-03-15T00:37:01.779764",
+        "message": "✅ Follow-up Monitoring: completed"
+      },
+      {
+        "time": "2026-03-15T00:37:01.779863",
+        "message": "   Score: 10/100"
+      },
+      {
+        "time": "2026-03-15T00:37:01.780120",
+        "message": "✅ Full Journey Analysis: completed"
+      }
+    ]
+  },
+  "analysis": {
+    "dimensions": [
+      {
+        "name": "First Impression",
+        "score": 75,
+        "notes": "The website is well-designed with a booking widget and live chat, but room information could be more detailed."
+      },
+      {
+        "name": "Response Speed",
+        "score": 60,
+        "notes": "Response times varied; webchat was quick, but email and WhatsApp responses were slower than ideal."
+      },
+      {
+        "name": "Personalization",
+        "score": 70,
+        "notes": "Responses were somewhat personalized, but lacked depth in understanding specific needs like conference rates."
+      },
+      {
+        "name": "Cross-Channel Consistency",
+        "score": 80,
+        "notes": "Information was mostly consistent across channels, but some details like conference rates were missing."
+      },
+      {
+        "name": "Product Knowledge",
+        "score": 65,
+        "notes": "Staff had basic knowledge of rooms and rates but lacked awareness of special deals and extras."
+      },
+      {
+        "name": "Proactive Service",
+        "score": 50,
+        "notes": "There was little upselling or suggestion of extras, and no proactive follow-up to close the sale."
+      },
+      {
+        "name": "Follow-up",
+        "score": 30,
+        "notes": "No proactive follow-up within 72 hours, missing a key opportunity to convert an interested customer."
+      },
+      {
+        "name": "Booking Conversion",
+        "score": 55,
+        "notes": "Efforts to convert the inquiry into a booking were weak, with no urgency or direct booking benefits highlighted."
+      },
+      {
+        "name": "Overall Hospitality",
+        "score": 70,
+        "notes": "Interactions were polite and welcoming, but lacked the extra touch to make the customer feel valued."
+      }
+    ],
+    "overall_score": 62,
+    "executive_summary": "The Grand Hotel provides a decent initial experience but misses key opportunities in follow-up and conversion. Improving response times and proactive engagement could significantly boost bookings.",
+    "top_strengths": [
+      "Good website design",
+      "Consistent cross-channel communication"
+    ],
+    "critical_improvements": [
+      "Improve follow-up procedures",
+      "Enhance response speed and personalization"
+    ],
+    "revenue_impact": "Slow email response and lack of follow-up likely lose 20-30% of potential bookings.",
+    "competitive_benchmark": "Below average compared to industry standards, particularly in follow-up and conversion efforts.",
+    "quick_wins": [
+      "Implement a follow-up protocol within 24 hours",
+      "Train staff on special rates and upselling techniques"
+    ]
+  }
+}

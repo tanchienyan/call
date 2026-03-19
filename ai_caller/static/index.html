@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Outbound Caller</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0a; --surface: #111; --surface2: #1a1a1a; --surface3: #222;
+  --border: #2a2a2a; --text: #f0f0f0; --text2: #999; --text3: #666;
+  --accent: #6366f1; --accent2: #818cf8; --green: #22c55e; --orange: #f59e0b;
+  --red: #ef4444; --radius: 12px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+.container { max-width:1100px; margin:0 auto; padding:24px; }
+
+header { display:flex; align-items:center; justify-content:space-between; margin-bottom:32px; }
+header h1 { font-size:24px; font-weight:700; display:flex; align-items:center; gap:10px; }
+header h1 span { font-size:28px; }
+.health { display:flex; gap:8px; }
+.health-dot { width:8px; height:8px; border-radius:50%; }
+.health-dot.ok { background:var(--green); }
+.health-dot.missing { background:var(--red); }
+
+/* New Call Form */
+.new-call { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:24px; }
+.new-call h2 { font-size:16px; font-weight:600; margin-bottom:16px; color:var(--text2); }
+.form-row { display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+.form-group { flex:1; min-width:200px; }
+.form-group label { display:block; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text3); margin-bottom:4px; }
+.form-group input, .form-group select { width:100%; padding:10px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:14px; font-family:inherit; outline:none; }
+.form-group input:focus, .form-group select:focus { border-color:var(--accent); }
+.form-group input::placeholder { color:var(--text3); }
+
+.variables { margin-top:8px; }
+.var-row { display:flex; gap:8px; margin-bottom:6px; align-items:center; }
+.var-row input { flex:1; padding:8px 10px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:13px; font-family:inherit; outline:none; }
+.var-hint { font-size:11px; color:var(--text3); margin-bottom:8px; }
+
+.btn { padding:10px 20px; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; transition:all 0.15s; }
+.btn-call { background:var(--green); color:#000; }
+.btn-call:hover { background:#16a34a; }
+.btn-call:disabled { opacity:0.5; cursor:not-allowed; }
+
+/* Call List */
+.calls h2 { font-size:16px; font-weight:600; color:var(--text2); margin-bottom:12px; }
+.call-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:8px; cursor:pointer; transition:border-color 0.15s; }
+.call-card:hover { border-color:var(--accent); }
+.call-card.active { border-color:var(--accent); background:var(--surface2); }
+.call-header { display:flex; justify-content:space-between; align-items:center; }
+.call-info { display:flex; align-items:center; gap:12px; }
+.call-icon { font-size:20px; }
+.call-number { font-weight:600; font-size:15px; }
+.call-agent { font-size:12px; color:var(--text2); }
+.call-meta { text-align:right; }
+.call-status { font-size:11px; padding:3px 8px; border-radius:4px; font-weight:600; }
+.call-status.completed { background:rgba(34,197,94,0.15); color:var(--green); }
+.call-status.connected,.call-status.in-progress { background:rgba(245,158,11,0.15); color:var(--orange); animation:pulse 1.5s infinite; }
+.call-status.ringing,.call-status.initiating { background:rgba(99,102,241,0.15); color:var(--accent2); }
+.call-status.failed,.call-status.busy,.call-status.no-answer { background:rgba(239,68,68,0.15); color:var(--red); }
+.call-time { font-size:11px; color:var(--text3); margin-top:4px; }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* Call Detail */
+.call-detail { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-top:16px; display:none; }
+.call-detail.visible { display:block; }
+.call-detail h3 { font-size:16px; margin-bottom:16px; }
+.transcript { max-height:500px; overflow-y:auto; }
+.msg { padding:8px 0; border-bottom:1px solid var(--border); }
+.msg:last-child { border:none; }
+.msg-role { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px; }
+.msg-role.agent { color:var(--accent2); }
+.msg-role.user { color:var(--green); }
+.msg-text { font-size:14px; line-height:1.6; color:var(--text2); }
+.msg-time { font-size:10px; color:var(--text3); }
+
+.stats { display:flex; gap:16px; margin-bottom:16px; }
+.stat { background:var(--surface2); border-radius:8px; padding:12px 16px; }
+.stat-val { font-size:20px; font-weight:700; }
+.stat-label { font-size:11px; color:var(--text3); }
+
+.empty { text-align:center; padding:48px; color:var(--text3); }
+.empty-icon { font-size:48px; margin-bottom:12px; }
+
+::-webkit-scrollbar { width:5px; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1><span>📞</span> AI Outbound Caller</h1>
+    <div class="health" id="health"></div>
+  </header>
+
+  <div class="new-call">
+    <h2>📞 New Call</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Phone Number</label>
+        <input type="tel" id="toNumber" placeholder="+44 7xxx xxx xxx">
+      </div>
+      <div class="form-group">
+        <label>Scenario</label>
+        <select id="scenario"></select>
+      </div>
+      <div class="form-group">
+        <label>Voice</label>
+        <select id="voiceId"><option value="">Default (from scenario)</option></select>
+      </div>
+    </div>
+    <div class="var-hint">Template variables (used in agent prompt):</div>
+    <div class="variables" id="variables">
+      <div class="var-row">
+        <input placeholder="customer_name" class="var-key" value="customer_name">
+        <input placeholder="Value" class="var-val" value="John">
+      </div>
+      <div class="var-row">
+        <input placeholder="company_name" class="var-key" value="company_name">
+        <input placeholder="Value" class="var-val" value="Nexus Financial">
+      </div>
+      <div class="var-row">
+        <input placeholder="amount / appointment_date / etc" class="var-key" value="amount">
+        <input placeholder="Value" class="var-val" value="$245.50">
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <button class="btn btn-call" id="callBtn" onclick="makeCall()">📞 Start Call</button>
+    </div>
+  </div>
+
+  <div class="calls">
+    <h2>Recent Calls</h2>
+    <div id="callList"><div class="empty"><div class="empty-icon">📵</div>No calls yet</div></div>
+  </div>
+
+  <div class="call-detail" id="callDetail"></div>
+</div>
+
+<script>
+let calls = [], activeCallId = null, pollTimer = null;
+
+const api = {
+  get: u => fetch(u).then(r=>r.json()),
+  post: (u,b) => fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(r=>r.json()),
+};
+
+async function init() {
+  checkHealth();
+  loadAgents();
+  loadVoices();
+  loadCalls();
+  pollTimer = setInterval(loadCalls, 3000);
+}
+
+async function checkHealth() {
+  try {
+    const h = await api.get('/api/health');
+    const el = document.getElementById('health');
+    el.innerHTML = ['twilio','deepgram','elevenlabs','openai'].map(k =>
+      `<div class="health-dot ${h[k]?'ok':'missing'}" title="${k}: ${h[k]?'✓':'missing'}"></div>`
+    ).join('');
+  } catch(e) {}
+}
+
+async function loadAgents() {
+  try {
+    const agents = await api.get('/api/agents');
+    const sel = document.getElementById('scenario');
+    sel.innerHTML = Object.entries(agents).map(([k,v]) =>
+      `<option value="${k}">${v.name} — ${v.description}</option>`
+    ).join('');
+  } catch(e) {}
+}
+
+async function loadVoices() {
+  try {
+    const voices = await api.get('/api/voices');
+    const sel = document.getElementById('voiceId');
+    sel.innerHTML = '<option value="">Default (from scenario)</option>' +
+      voices.slice(0, 50).map(v =>
+        `<option value="${v.voice_id}">${v.name} (${v.labels?.accent||v.labels?.gender||v.category||''})</option>`
+      ).join('');
+  } catch(e) {}
+}
+
+async function loadCalls() {
+  try {
+    calls = await api.get('/api/calls');
+    renderCalls();
+    if (activeCallId) {
+      const c = calls.find(c=>c.id===activeCallId);
+      if (c) showDetail(c);
+    }
+  } catch(e) {}
+}
+
+function renderCalls() {
+  const el = document.getElementById('callList');
+  if (!calls.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📵</div>No calls yet</div>'; return; }
+  el.innerHTML = calls.map(c => `
+    <div class="call-card ${activeCallId===c.id?'active':''}" onclick="selectCall('${c.id}')">
+      <div class="call-header">
+        <div class="call-info">
+          <div class="call-icon">📞</div>
+          <div>
+            <div class="call-number">${esc(c.to_number)}</div>
+            <div class="call-agent">${esc(c.agent_name)} · ${esc(c.agent_scenario)}</div>
+          </div>
+        </div>
+        <div class="call-meta">
+          <div class="call-status ${c.status}">${c.status}</div>
+          <div class="call-time">${c.duration_seconds?c.duration_seconds.toFixed(0)+'s':''} · ${timeAgo(c.created_at)}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function selectCall(id) {
+  activeCallId = id;
+  const c = calls.find(c=>c.id===id);
+  if (c) showDetail(c);
+  renderCalls();
+}
+
+function showDetail(c) {
+  const el = document.getElementById('callDetail');
+  el.classList.add('visible');
+  const transcript = Array.isArray(c.transcript) ? c.transcript : [];
+  el.innerHTML = `
+    <h3>${esc(c.agent_name)} → ${esc(c.to_number)}</h3>
+    <div class="stats">
+      <div class="stat"><div class="stat-val">${c.duration_seconds?c.duration_seconds.toFixed(0)+'s':'—'}</div><div class="stat-label">Duration</div></div>
+      <div class="stat"><div class="stat-val">${c.status}</div><div class="stat-label">Status</div></div>
+      <div class="stat"><div class="stat-val">${transcript.length}</div><div class="stat-label">Messages</div></div>
+    </div>
+    <div class="transcript">
+      ${transcript.length ? transcript.map(m => `
+        <div class="msg">
+          <div class="msg-role ${m.role}">${m.role}</div>
+          <div class="msg-text">${esc(m.text)}</div>
+          ${m.ts?`<div class="msg-time">${new Date(m.ts+'Z').toLocaleTimeString()}</div>`:''}
+        </div>
+      `).join('') : '<div class="empty">No transcript yet</div>'}
+    </div>
+  `;
+}
+
+async function makeCall() {
+  const btn = document.getElementById('callBtn');
+  btn.disabled = true; btn.textContent = '⏳ Calling...';
+
+  const vars = {};
+  document.querySelectorAll('.var-row').forEach(row => {
+    const k = row.querySelector('.var-key').value.trim();
+    const v = row.querySelector('.var-val').value.trim();
+    if (k && v) vars[k] = v;
+  });
+
+  try {
+    const res = await api.post('/api/call', {
+      to_number: document.getElementById('toNumber').value.trim(),
+      scenario: document.getElementById('scenario').value,
+      voice_id: document.getElementById('voiceId').value || undefined,
+      variables: vars,
+    });
+    activeCallId = res.call_id;
+    await loadCalls();
+  } catch(e) { alert('Call failed: ' + e.message); }
+
+  btn.disabled = false; btn.textContent = '📞 Start Call';
+}
+
+function esc(s) { if(!s) return ''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function timeAgo(iso) {
+  if(!iso) return '';
+  const s = Math.floor((Date.now()-new Date(iso+'Z'))/1000);
+  if(s<60) return 'just now'; if(s<3600) return Math.floor(s/60)+'m ago';
+  if(s<86400) return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago';
+}
+
+init();
+</script>
+</body>
+</html>

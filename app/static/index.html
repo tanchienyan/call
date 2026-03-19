@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mystery Shopper — AI-Powered Hotel Service Testing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #000000;
+  --surface: #111111;
+  --surface2: #1a1a1a;
+  --surface3: #222222;
+  --border: #333333;
+  --text: #f5f5f7;
+  --text2: #a1a1a6;
+  --text3: #6e6e73;
+  --accent: #2997ff;
+  --accent2: #0071e3;
+  --green: #30d158;
+  --orange: #ff9f0a;
+  --red: #ff453a;
+  --purple: #bf5af2;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* ─── Layout ─── */
+.app { display: flex; height: 100vh; }
+
+.sidebar {
+  width: 280px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.sidebar-header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+.logo-icon {
+  width: 32px; height: 32px;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+
+.new-mission-btn {
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px;
+  background: var(--accent2);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.new-mission-btn:hover { background: var(--accent); }
+
+.sidebar-missions {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.mission-item {
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-bottom: 2px;
+}
+.mission-item:hover { background: var(--surface2); }
+.mission-item.active { background: var(--surface3); }
+
+.mission-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mission-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text3);
+}
+
+.status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.status-dot.running { background: var(--orange); animation: pulse 1.5s infinite; }
+.status-dot.completed { background: var(--green); }
+.status-dot.failed { background: var(--red); }
+.status-dot.pending { background: var(--text3); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ─── Main Content ─── */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+/* ─── Empty State ─── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: 40px;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 24px;
+  opacity: 0.6;
+}
+
+.empty-state h2 {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+
+.empty-state p {
+  color: var(--text2);
+  font-size: 15px;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+/* ─── Mission Detail ─── */
+.mission-detail { padding: 32px 40px; max-width: 1000px; }
+
+.mission-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+
+.mission-title {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.8px;
+}
+
+.mission-subtitle {
+  color: var(--text2);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.score-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px; height: 80px;
+  border-radius: 20px;
+  font-size: 32px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.score-badge.excellent { background: rgba(48,209,88,0.15); color: var(--green); }
+.score-badge.good { background: rgba(255,159,10,0.15); color: var(--orange); }
+.score-badge.poor { background: rgba(255,69,58,0.15); color: var(--red); }
+
+/* ─── Cards ─── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text2);
+  margin-bottom: 16px;
+}
+
+/* ─── Score Bars ─── */
+.score-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.score-label {
+  width: 180px;
+  font-size: 13px;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+
+.score-bar-bg {
+  flex: 1;
+  height: 6px;
+  background: var(--surface3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.score-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.score-value {
+  width: 36px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* ─── Timeline ─── */
+.timeline { position: relative; }
+
+.timeline-step {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  position: relative;
+}
+
+.timeline-step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 19px;
+  top: 52px;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+
+.timeline-step.completed:not(:last-child)::before { background: var(--green); opacity: 0.4; }
+
+.step-icon {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  background: var(--surface3);
+}
+
+.step-icon.completed { background: rgba(48,209,88,0.15); }
+.step-icon.running { background: rgba(255,159,10,0.15); animation: pulse 1.5s infinite; }
+.step-icon.failed { background: rgba(255,69,58,0.15); }
+
+.step-content { flex: 1; min-width: 0; }
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.step-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.step-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+.step-status.completed { background: rgba(48,209,88,0.15); color: var(--green); }
+.step-status.running { background: rgba(255,159,10,0.15); color: var(--orange); }
+.step-status.failed { background: rgba(255,69,58,0.15); color: var(--red); }
+.step-status.pending { background: var(--surface3); color: var(--text3); }
+.step-status.skipped { background: var(--surface3); color: var(--text3); }
+
+.step-notes {
+  font-size: 13px;
+  color: var(--text2);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.step-score {
+  font-size: 14px;
+  font-weight: 600;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ─── Transcript ─── */
+.transcript {
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.transcript .agent { color: var(--accent); }
+.transcript .hotel { color: var(--green); }
+
+/* ─── Audio Player ─── */
+.audio-player {
+  margin-top: 12px;
+}
+
+.audio-player audio {
+  width: 100%;
+  height: 36px;
+  border-radius: 8px;
+}
+
+/* ─── Insights Grid ─── */
+.insights-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.insight-list {
+  list-style: none;
+  padding: 0;
+}
+
+.insight-list li {
+  padding: 8px 0;
+  font-size: 13px;
+  color: var(--text2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.insight-list li:last-child { border: none; }
+.insight-list li::before { flex-shrink: 0; }
+
+.strengths li::before { content: '💪'; }
+.improvements li::before { content: '🔧'; }
+.quickwins li::before { content: '⚡'; }
+.redflags li::before { content: '🚩'; }
+
+/* ─── New Mission Modal ─── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(20px);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.visible { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  margin-bottom: 24px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+
+.form-group input, .form-group select {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus { border-color: var(--accent); }
+.form-group input::placeholder { color: var(--text3); }
+
+.channel-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.channel-chip {
+  padding: 8px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+.channel-chip.selected {
+  background: rgba(41,151,255,0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.btn-primary { background: var(--accent2); color: white; }
+.btn-primary:hover { background: var(--accent); }
+.btn-secondary { background: var(--surface3); color: var(--text2); }
+.btn-secondary:hover { background: var(--border); color: var(--text); }
+
+/* ─── Quick Actions ─── */
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.quick-action {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.quick-action:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+.quick-action-icon { font-size: 28px; margin-bottom: 8px; }
+.quick-action-label { font-size: 12px; color: var(--text2); font-weight: 500; }
+
+/* ─── Stats ─── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <div class="logo-icon">🕵️</div>
+        Mystery Shopper
+      </div>
+      <button class="new-mission-btn" onclick="openModal()">+ New Mission</button>
+    </div>
+    <div class="sidebar-missions" id="missionList">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main" id="mainContent">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🕵️</div>
+      <h2>AI Mystery Shopper</h2>
+      <p>Test any hotel's service quality across phone, email, webchat, and more. Create a new mission to get started.</p>
+      <button class="btn btn-primary" style="margin-top:24px" onclick="openModal()">Create First Mission</button>
+    </div>
+    <div class="mission-detail" id="missionDetail" style="display:none">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- New Mission Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>🕵️ New Mystery Shopping Mission</h2>
+
+    <div class="form-group">
+      <label>Hotel Name</label>
+      <input type="text" id="hotelName" placeholder="e.g. Hilton Midtown NYC">
+    </div>
+
+    <div class="form-group">
+      <label>Website</label>
+      <input type="text" id="hotelWebsite" placeholder="https://www.hilton.com/...">
+    </div>
+
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="hotelEmail" placeholder="reservations@hotel.com">
+    </div>
+
+    <div class="form-group">
+      <label>Phone Number</label>
+      <input type="tel" id="hotelPhone" placeholder="+12125867000">
+    </div>
+
+    <div class="form-group">
+      <label>Channels to Test</label>
+      <div class="channel-chips">
+        <div class="channel-chip selected" data-ch="phone" onclick="toggleChip(this)">📞 Phone</div>
+        <div class="channel-chip selected" data-ch="email" onclick="toggleChip(this)">📧 Email</div>
+        <div class="channel-chip" data-ch="webchat" onclick="toggleChip(this)">💬 Webchat</div>
+        <div class="channel-chip" data-ch="browse" onclick="toggleChip(this)">🌐 Browse</div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="createMission()">Launch Mission 🚀</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ───
+let missions = [];
+let activeMission = null;
+let pollTimer = null;
+
+// ─── API ───
+const api = {
+  async get(url) {
+    const r = await fetch(url);
+    return r.json();
+  },
+  async post(url, body) {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    return r.json();
+  },
+  async del(url) {
+    const r = await fetch(url, {method: 'DELETE'});
+    return r.json();
+  },
+};
+
+// ─── Init ───
+async function init() {
+  await loadMissions();
+  startPolling();
+}
+
+async function loadMissions() {
+  missions = await api.get('/api/missions');
+  renderSidebar();
+  if (activeMission) {
+    const updated = missions.find(m => m.id === activeMission.id);
+    if (updated) showMission(updated);
+  }
+}
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    const hasRunning = missions.some(m => m.status === 'running');
+    if (hasRunning || activeMission?.status === 'running') {
+      await loadMissions();
+    }
+  }, 5000);
+}
+
+// ─── Sidebar ───
+function renderSidebar() {
+  const el = document.getElementById('missionList');
+  if (!missions.length) {
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">No missions yet</div>';
+    return;
+  }
+  el.innerHTML = missions.map(m => `
+    <div class="mission-item ${activeMission?.id === m.id ? 'active' : ''}"
+         onclick="selectMission('${m.id}')">
+      <div class="mission-item-name">${esc(m.hotel_name)}</div>
+      <div class="mission-item-meta">
+        <span class="status-dot ${m.status}"></span>
+        ${m.status}
+        ${m.overall_score ? ` · ${m.overall_score}/100` : ''}
+        · ${timeAgo(m.created_at)}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function selectMission(id) {
+  const m = missions.find(m => m.id === id);
+  if (m) {
+    // Fetch full details
+    const full = await api.get(`/api/missions/${id}`);
+    showMission(full);
+  }
+}
+
+// ─── Mission Detail ───
+function showMission(m) {
+  activeMission = m;
+  document.getElementById('emptyState').style.display = 'none';
+  const el = document.getElementById('missionDetail');
+  el.style.display = 'block';
+
+  const analysis = m.analysis || (m.analysis_json ? JSON.parse(m.analysis_json) : null);
+  const score = m.overall_score || analysis?.overall_score || null;
+  const scoreClass = score >= 75 ? 'excellent' : score >= 50 ? 'good' : 'poor';
+
+  let html = `
+    <div class="mission-header">
+      <div>
+        <div class="mission-title">${esc(m.hotel_name)}</div>
+        <div class="mission-subtitle">
+          ${m.hotel_phone ? '📞 ' + esc(m.hotel_phone) + ' · ' : ''}
+          ${m.hotel_email ? '📧 ' + esc(m.hotel_email) + ' · ' : ''}
+          Created ${timeAgo(m.created_at)}
+        </div>
+      </div>
+      ${score ? `<div class="score-badge ${scoreClass}">${score}</div>` : ''}
+    </div>
+  `;
+
+  // Executive summary
+  if (analysis?.executive_summary) {
+    html += `
+      <div class="card">
+        <div class="card-title">Executive Summary</div>
+        <p style="font-size:14px;line-height:1.6;color:var(--text2)">${esc(analysis.executive_summary)}</p>
+        ${analysis.competitive_benchmark ? `<p style="margin-top:8px;font-size:13px">Benchmark: <strong style="color:var(--accent)">${esc(analysis.competitive_benchmark)}</strong></p>` : ''}
+      </div>
+    `;
+  }
+
+  // Score dimensions
+  if (analysis?.dimensions) {
+    html += `<div class="card"><div class="card-title">Performance Scores</div>`;
+    for (const dim of analysis.dimensions) {
+      const color = dim.score >= 75 ? 'var(--green)' : dim.score >= 50 ? 'var(--orange)' : 'var(--red)';
+      html += `
+        <div class="score-row">
+          <div class="score-label">${esc(dim.name)}</div>
+          <div class="score-bar-bg"><div class="score-bar" style="width:${dim.score}%;background:${color}"></div></div>
+          <div class="score-value" style="color:${color}">${dim.score}</div>
+        </div>
+      `;
+    }
+    html += `</div>`;
+  }
+
+  // Phone call scores (for single-channel)
+  if (analysis?.scores && !analysis?.dimensions) {
+    html += `<div class="card"><div class="card-title">Call Scores</div>`;
+    for (const [key, val] of Object.entries(analysis.scores)) {
+      const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      const color = val >= 75 ? 'var(--green)' : val >= 50 ? 'var(--orange)' : 'var(--red)';
+      html += `
+        <div class="score-row">
+          <div class="score-label">${label}</div>
+          <div class="score-bar-bg"><div class="score-bar" style="width:${val}%;background:${color}"></div></div>
+          <div class="score-value" style="color:${color}">${val}</div>
+        </div>
+      `;
+    }
+    html += `</div>`;
+  }
+
+  // Journey timeline
+  const steps = m.steps || [];
+  if (steps.length) {
+    const stepIcons = {
+      browse_website: '🌐', webchat: '💬', send_email: '📧', wait_email: '📨',
+      phone_call: '📞', send_whatsapp: '📱', wait_whatsapp: '📲',
+      wait_followup: '⏳', analyze: '📊'
+    };
+
+    html += `<div class="card"><div class="card-title">Journey Timeline</div><div class="timeline">`;
+    for (const step of steps) {
+      const icon = stepIcons[step.step_type] || '📋';
+      const scoreHtml = step.score ? `<span class="step-score" style="color:${step.score >= 75 ? 'var(--green)' : step.score >= 50 ? 'var(--orange)' : 'var(--red)'}">${step.score}/100</span>` : '';
+
+      html += `
+        <div class="timeline-step ${step.status}">
+          <div class="step-icon ${step.status}">${icon}</div>
+          <div class="step-content">
+            <div class="step-header">
+              <span class="step-name">${esc(step.step_name)}</span>
+              <span class="step-status ${step.status}">${step.status}</span>
+              ${scoreHtml}
+            </div>
+            ${step.notes ? `<div class="step-notes">${esc(step.notes)}</div>` : ''}
+            ${step.transcript ? renderTranscript(step.transcript) : ''}
+            ${step.recording_url ? `<div class="audio-player"><audio controls src="${step.recording_url}"></audio></div>` : ''}
+          </div>
+        </div>
+      `;
+    }
+    html += `</div></div>`;
+  }
+
+  // Call recordings from call_records
+  if (m.calls?.length) {
+    for (const call of m.calls) {
+      if (call.transcript) {
+        html += `
+          <div class="card">
+            <div class="card-title">📞 Call Recording · ${(call.duration_seconds || 0).toFixed(0)}s · $${(call.cost_cents / 100).toFixed(2)}</div>
+            ${renderTranscript(call.transcript)}
+            ${call.recording_url ? `<div class="audio-player"><audio controls src="${call.recording_url}"></audio></div>` : ''}
+          </div>
+        `;
+      }
+    }
+  }
+
+  // Insights
+  if (analysis) {
+    const hasInsights = analysis.top_strengths || analysis.critical_improvements || analysis.quick_wins;
+    if (hasInsights) {
+      html += `<div class="insights-grid">`;
+      if (analysis.top_strengths?.length) {
+        html += `<div class="card"><div class="card-title">💪 Strengths</div><ul class="insight-list strengths">${analysis.top_strengths.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div>`;
+      }
+      if (analysis.critical_improvements?.length) {
+        html += `<div class="card"><div class="card-title">🔧 Improvements</div><ul class="insight-list improvements">${analysis.critical_improvements.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div>`;
+      }
+      if (analysis.quick_wins?.length) {
+        html += `<div class="card"><div class="card-title">⚡ Quick Wins</div><ul class="insight-list quickwins">${analysis.quick_wins.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div>`;
+      }
+      html += `</div>`;
+    }
+
+    if (analysis.revenue_impact) {
+      html += `<div class="card" style="border-left:3px solid var(--orange)"><div class="card-title">💰 Revenue Impact</div><p style="font-size:14px;line-height:1.6;color:var(--text2)">${esc(analysis.revenue_impact)}</p></div>`;
+    }
+  }
+
+  el.innerHTML = html;
+  renderSidebar();
+}
+
+function renderTranscript(text) {
+  if (!text) return '';
+  const lines = text.split('\n').map(line => {
+    if (line.startsWith('Agent:')) return `<span class="agent">${esc(line)}</span>`;
+    if (line.startsWith('User:')) return `<span class="hotel">${esc(line)}</span>`;
+    return esc(line);
+  });
+  return `<div class="transcript">${lines.join('<br>')}</div>`;
+}
+
+// ─── Modal ───
+function openModal() {
+  document.getElementById('modalOverlay').classList.add('visible');
+  document.getElementById('hotelName').focus();
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('visible');
+}
+
+function toggleChip(el) {
+  el.classList.toggle('selected');
+}
+
+async function createMission() {
+  const name = document.getElementById('hotelName').value.trim();
+  if (!name) { alert('Please enter a hotel name'); return; }
+
+  const channels = [...document.querySelectorAll('.channel-chip.selected')].map(c => c.dataset.ch);
+
+  const payload = {
+    hotel_name: name,
+    hotel_website: document.getElementById('hotelWebsite').value.trim(),
+    hotel_email: document.getElementById('hotelEmail').value.trim(),
+    hotel_phone: document.getElementById('hotelPhone').value.trim(),
+    channels: channels,
+  };
+
+  const result = await api.post('/api/missions', payload);
+  closeModal();
+  // Clear form
+  document.getElementById('hotelName').value = '';
+  document.getElementById('hotelWebsite').value = '';
+  document.getElementById('hotelEmail').value = '';
+  document.getElementById('hotelPhone').value = '';
+
+  await loadMissions();
+  if (result.mission_id) {
+    const m = missions.find(m => m.id === result.mission_id);
+    if (m) selectMission(result.mission_id);
+  }
+}
+
+// ─── Helpers ───
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + (iso.includes('Z') ? '' : 'Z'));
+  const s = Math.floor((Date.now() - d) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+
+function scoreColor(s) {
+  return s >= 75 ? 'var(--green)' : s >= 50 ? 'var(--orange)' : 'var(--red)';
+}
+
+// Escape key closes modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// Click outside modal closes it
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+// ─── Start ───
+init();
+</script>
+</body>
+</html>

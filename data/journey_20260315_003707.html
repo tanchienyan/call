@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Journey Report — The Grand Hotel London</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;padding:2rem}
+.container{max-width:850px;margin:0 auto}
+.header{text-align:center;padding:2rem 0}
+.header h1{color:#94a3b8;font-size:1.2rem;margin-bottom:.5rem}
+.header h2{font-size:2rem;color:#f8fafc}
+.score-circle{display:inline-flex;align-items:center;justify-content:center;width:140px;height:140px;border-radius:50%;font-size:3.5rem;font-weight:bold;color:white;background:#eab308;box-shadow:0 0 40px #eab30840;margin:1.5rem 0}
+.benchmark{color:#94a3b8;font-size:1.1rem;margin:.5rem 0}
+.summary{background:#1e293b;border-radius:12px;padding:1.5rem;margin:1.5rem 0;line-height:1.6}
+.section{background:#1e293b;border-radius:12px;padding:1.5rem;margin:1rem 0}
+.section h3{margin-bottom:1rem;font-size:1.1rem}
+.dim-row{display:flex;align-items:center;gap:.75rem;margin-bottom:.25rem}
+.dim-name{width:200px;font-size:.9rem}
+.dim-bar-bg{flex:1;height:8px;background:#334155;border-radius:4px}
+.dim-bar{height:100%;border-radius:4px;transition:width .5s}
+.dim-score{width:35px;text-align:right;font-weight:bold}
+.dim-notes{font-size:.8rem;color:#64748b;margin:0 0 .75rem 200px;padding-left:.75rem}
+.timeline-item{display:flex;gap:1rem;padding:.75rem 0;border-left:2px solid #334155;margin-left:1rem;padding-left:1.5rem;position:relative}
+.timeline-item.completed{border-color:#22c55e}
+.timeline-item.failed{border-color:#ef4444}
+.timeline-item.skipped{border-color:#64748b}
+.timeline-dot{position:absolute;left:-6px;top:1rem;width:10px;height:10px;border-radius:50%;background:#334155}
+.timeline-item.completed .timeline-dot{background:#22c55e}
+.timeline-item.failed .timeline-dot{background:#ef4444}
+.timeline-header{display:flex;gap:.5rem;align-items:center}
+.timeline-icon{font-size:1.2rem}
+.timeline-name{font-weight:600}
+.timeline-time{color:#94a3b8;font-size:.85rem;margin-left:auto}
+.timeline-notes{font-size:.85rem;color:#94a3b8;margin-top:.25rem}
+ul{padding-left:1.5rem}li{margin:.3rem 0;color:#cbd5e1}
+.revenue{background:#1e293b;border-left:3px solid #f97316;border-radius:0 12px 12px 0;padding:1.5rem;margin:1rem 0}
+.footer{text-align:center;color:#475569;margin-top:2rem}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h1>🕵️ AI Mystery Shopper — Full Journey Report</h1>
+<h2>The Grand Hotel London</h2>
+<div class="score-circle">62</div>
+<div class="benchmark">Competitive Benchmark: <strong>Below average compared to industry standards, particularly in follow-up and conversion efforts.</strong></div>
+</div>
+
+<div class="summary">
+<h3>📝 Executive Summary</h3>
+<p style="margin-top:.5rem">The Grand Hotel provides a decent initial experience but misses key opportunities in follow-up and conversion. Improving response times and proactive engagement could significantly boost bookings.</p>
+</div>
+
+<div class="section">
+<h3>📊 Performance Dimensions</h3>
+
+        <div class="dim-row">
+            <div class="dim-name">First Impression</div>
+            <div class="dim-bar-bg"><div class="dim-bar" style="width:75%;background:#eab308"></div></div>
+            <div class="dim-score" style="color:#eab308">75</div>
+        </div>
+        <div class="dim-notes">The website is well-designed with a booking widget and live chat, but room information could be more detailed.</div>
+        <div class="dim-row">
+            <div class="dim-name">Response Speed</div>
+            <div class="dim-bar-bg"><div class="dim-bar" style="width:60%;background:#eab308"></div></div>
+            <div class="dim-score" style="color:#eab308">60</div>
+        </div>
+        <div class="dim-notes">Response times varied; webchat was quick, but email and WhatsApp responses were slower than ideal.</div>
+        <div class="dim-row">
+            <div class="dim-name">Personalization</div>
+            <div class="dim-bar-bg"><div class="dim-bar" style="width:70%;background:#eab308"></div></div>
+            <div class="dim-score" style="color:#eab308">70</div>
+        </div>
+        <div class="dim-notes">Responses were somewhat personalized, but lacked depth in understanding specific needs like conference rates.</div>
+        <div class="dim-row">
+            <div class="dim-name">Cross-Channel Consistency</div>
+            <div class="dim-bar-bg"><div class="dim-bar" style="width:80%;background:#22c55e"></div></div>
+            <div class="dim-score" style="color:#22c55e">80</div>
+        </div>
+        <div class="dim-notes">Information was mostly consistent across channels, but some details like conference rates were missing.</div>
+        <div class="dim-row">
+            <div class="dim-name">Product Knowledge</div>
+            <div class="dim-bar-bg"><div class="dim-bar" style="width:65%;background:#eab308"></div></div>
+            <div class="dim-score" style="color:#eab308">65</div>
+        </div>
+        <div class="dim-notes">Staff had basic knowledge of rooms and rates but lacked awareness of special deals and extras.</div>
+        <div class="dim-row">
+            <div class="dim-name">Proactive Service</div>
+            <div class="dim-bar-bg"><div class="dim-bar" style="width:50%;background:#f97316"></div></div>
+            <div class="dim-score" style="color:#f97316">50</div>
+        </div>
+        <div class="dim-notes">There was little upselling or suggestion of extras, and no proactive follow-up to close the sale.</div>
+        <div class="dim-row">
+            <div class="dim-name">Follow-up</div>
+            <div class="dim-bar-bg"><div class="dim-bar" style="width:30%;background:#ef4444"></div></div>
+            <div class="dim-score" style="color:#ef4444">30</div>
+        </div>
+        <div class="dim-notes">No proactive follow-up within 72 hours, missing a key opportunity to convert an interested customer.</div>
+        <div class="dim-row">
+            <div class="dim-name">Booking Conversion</div>
+            <div class="dim-bar-bg"><div class="dim-bar" style="width:55%;background:#f97316"></div></div>
+            <div class="dim-score" style="color:#f97316">55</div>
+        </div>
+        <div class="dim-notes">Efforts to convert the inquiry into a booking were weak, with no urgency or direct booking benefits highlighted.</div>
+        <div class="dim-row">
+            <div class="dim-name">Overall Hospitality</div>
+            <div class="dim-bar-bg"><div class="dim-bar" style="width:70%;background:#eab308"></div></div>
+            <div class="dim-score" style="color:#eab308">70</div>
+        </div>
+        <div class="dim-notes">Interactions were polite and welcoming, but lacked the extra touch to make the customer feel valued.</div>
+</div>
+
+<div class="section">
+<h3>🗺️ Customer Journey Timeline</h3>
+
+        <div class="timeline-item completed">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <span class="timeline-icon">🌐</span>
+                    <span class="timeline-name">Browse Hotel Website</span>
+                    <span class="timeline-time"></span>
+                </div>
+                <div class="timeline-notes">Good website with booking widget and live chat. Room info could be more detailed.</div>
+            </div>
+        </div>
+        <div class="timeline-item completed">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <span class="timeline-icon">💬</span>
+                    <span class="timeline-name">Webchat Inquiry</span>
+                    <span class="timeline-time">45s</span>
+                </div>
+                <div class="timeline-notes">Good response time (45s). Provided room suggestion. But redirected to email instead of closing on chat.</div>
+            </div>
+        </div>
+        <div class="timeline-item completed">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <span class="timeline-icon">📧</span>
+                    <span class="timeline-name">Email Inquiry</span>
+                    <span class="timeline-time"></span>
+                </div>
+                <div class="timeline-notes">Email sent successfully. Referenced webchat conversation for cross-channel continuity.</div>
+            </div>
+        </div>
+        <div class="timeline-item completed">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <span class="timeline-icon">📨</span>
+                    <span class="timeline-name">Wait for Email Reply</span>
+                    <span class="timeline-time">6.5h</span>
+                </div>
+                <div class="timeline-notes">Took 6.5 hours to reply (should be under 4). Good content but no mention of conference deal, no direct booking link, no urgency. Didn't reference the webchat conversation.</div>
+            </div>
+        </div>
+        <div class="timeline-item completed">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <span class="timeline-icon">📞</span>
+                    <span class="timeline-name">Phone Call</span>
+                    <span class="timeline-time">165s</span>
+                </div>
+                <div class="timeline-notes">Answered in 4 rings (acceptable). Knew about the email (good cross-channel). But didn't know about conference rates, couldn't guarantee late checkout, didn't proactively upsell. No mention of direct booking benefits.</div>
+            </div>
+        </div>
+        <div class="timeline-item completed">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <span class="timeline-icon">📱</span>
+                    <span class="timeline-name">WhatsApp Message</span>
+                    <span class="timeline-time"></span>
+                </div>
+                <div class="timeline-notes">WhatsApp message sent successfully</div>
+            </div>
+        </div>
+        <div class="timeline-item completed">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <span class="timeline-icon">📲</span>
+                    <span class="timeline-name">Wait WhatsApp Reply</span>
+                    <span class="timeline-time">3.2h</span>
+                </div>
+                <div class="timeline-notes">Replied in 3.2 hours (acceptable for WhatsApp). Referenced the correct room and rate. Provided booking link. But didn't mention conference rate or any extras.</div>
+            </div>
+        </div>
+        <div class="timeline-item completed">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <span class="timeline-icon">⏳</span>
+                    <span class="timeline-name">Follow-up Monitoring</span>
+                    <span class="timeline-time">72.0h</span>
+                </div>
+                <div class="timeline-notes">Hotel did NOT follow up proactively within 72 hours. This is a major missed opportunity — the guest was clearly interested but didn't book. A simple 'Hi Sarah, just checking if you'd like to proceed?' could have converted this.</div>
+            </div>
+        </div>
+        <div class="timeline-item completed">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <span class="timeline-icon">📊</span>
+                    <span class="timeline-name">Full Journey Analysis</span>
+                    <span class="timeline-time"></span>
+                </div>
+                <div class="timeline-notes">Analysis complete</div>
+            </div>
+        </div>
+</div>
+
+<div class="section" style="display:flex;gap:1rem">
+<div style="flex:1"><h3>💪 Strengths</h3><ul><li>Good website design</li><li>Consistent cross-channel communication</li></ul></div>
+<div style="flex:1"><h3>🔧 Critical Improvements</h3><ul><li>Improve follow-up procedures</li><li>Enhance response speed and personalization</li></ul></div>
+</div>
+
+<div class="revenue">
+<h3>💰 Revenue Impact</h3>
+<p style="margin-top:.5rem">Slow email response and lack of follow-up likely lose 20-30% of potential bookings.</p>
+</div>
+
+<div class="section">
+<h3>⚡ Quick Wins</h3>
+<ul><li>Implement a follow-up protocol within 24 hours</li><li>Train staff on special rates and upselling techniques</li></ul>
+</div>
+
+<div class="footer"><p>Generated by AI Mystery Shopper · Confidential</p></div>
+</div>
+</body>
+</html>

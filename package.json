@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "esbuild": "^0.27.4",
+    "retell-client-js-sdk": "^2.0.7"
+  }
+}

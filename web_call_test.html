@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mystery Shopper - Phone Test</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; max-width: 600px; margin: 50px auto; text-align: center; background: #1a1a2e; color: #eee; }
+        h1 { font-size: 24px; }
+        .status { font-size: 18px; margin: 20px 0; color: #888; }
+        .status.active { color: #4ade80; }
+        .status.error { color: #f87171; }
+        button { font-size: 20px; padding: 15px 40px; border-radius: 50px; border: none; cursor: pointer; margin: 10px; }
+        #startBtn { background: #4ade80; color: #000; }
+        #startBtn:hover { background: #22c55e; }
+        #stopBtn { background: #f87171; color: #fff; display: none; }
+        #stopBtn:hover { background: #ef4444; }
+        .info { background: #16213e; padding: 20px; border-radius: 12px; margin: 20px 0; text-align: left; font-size: 14px; line-height: 1.8; }
+    </style>
+</head>
+<body>
+    <h1>🕵️ Mystery Shopper Phone Test</h1>
+    <div class="info">
+        <strong>Agent:</strong> Sarah Mitchell (Business Traveler)<br>
+        <strong>Voice:</strong> British Female (Willa - ElevenLabs)<br>
+        <strong>Scenario:</strong> Calling to inquire about a hotel booking<br><br>
+        <em>You play the hotel receptionist. Sarah will call asking about rooms.</em>
+    </div>
+    <div id="status" class="status">Click Start to begin the call</div>
+    <button id="startBtn" onclick="startCall()">📞 Start Call</button>
+    <button id="stopBtn" onclick="stopCall()">🔴 End Call</button>
+
+    <script type="module">
+        import { RetellWebClient } from '/retell-bundle.js';
+
+        let retellClient = null;
+
+        window.startCall = async function() {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = 'Creating call...';
+            statusEl.className = 'status';
+
+            try {
+                // Get access token from our local server
+                const resp = await fetch('http://localhost:8877/create-call', { method: 'POST' });
+                const data = await resp.json();
+
+                if (!data.access_token) {
+                    throw new Error(JSON.stringify(data));
+                }
+
+                statusEl.textContent = 'Connecting...';
+
+                retellClient = new RetellWebClient();
+
+                retellClient.on('call_started', () => {
+                    statusEl.textContent = '🟢 Call connected — speak now! (you are the hotel)';
+                    statusEl.className = 'status active';
+                    document.getElementById('startBtn').style.display = 'none';
+                    document.getElementById('stopBtn').style.display = 'inline-block';
+                });
+
+                retellClient.on('call_ended', () => {
+                    statusEl.textContent = '📞 Call ended';
+                    statusEl.className = 'status';
+                    document.getElementById('startBtn').style.display = 'inline-block';
+                    document.getElementById('stopBtn').style.display = 'none';
+                });
+
+                retellClient.on('error', (e) => {
+                    statusEl.textContent = 'Error: ' + (e.message || JSON.stringify(e));
+                    statusEl.className = 'status error';
+                    document.getElementById('startBtn').style.display = 'inline-block';
+                    document.getElementById('stopBtn').style.display = 'none';
+                });
+
+                await retellClient.startCall({ accessToken: data.access_token });
+
+            } catch (e) {
+                statusEl.textContent = 'Error: ' + e.message;
+                statusEl.className = 'status error';
+            }
+        }
+
+        window.stopCall = function() {
+            if (retellClient) {
+                retellClient.stopCall();
+            }
+        }
+    </script>
+</body>
+</html>
