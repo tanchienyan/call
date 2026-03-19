@@ -10,6 +10,7 @@ from stt import DeepgramSTT
 from tts import stream_tts
 from llm import stream_chat
 from phone_fx import phone_effect
+from smart_turn import TurnDetector
 import storage
 
 
@@ -38,6 +39,8 @@ class WebCallSession:
             "gain_db": -2.0, "clip_threshold": 0.65
         })
         print(f"[WEB {call_id}] phone_fx={self.phone_fx} settings={self.phone_fx_settings}", flush=True)
+        
+        self.turn_detector = TurnDetector()
         
         self.stt = DeepgramSTT(
             on_transcript=self._on_stt_transcript,
@@ -85,6 +88,8 @@ class WebCallSession:
 
     async def handle_audio(self, audio_bytes: bytes):
         """Receive raw PCM 16-bit 16kHz audio from browser."""
+        # Feed to Smart Turn detector (always, for analysis)
+        self.turn_detector.feed_audio(audio_bytes, is_speech=not self.is_speaking)
         if not self.mute_stt:
             await self.stt.send_audio(audio_bytes)
 
@@ -118,6 +123,15 @@ class WebCallSession:
                 self._interrupted_context = True
                 await self._stop_speaking()
 
+            # Use Smart Turn to verify user actually finished speaking
+            is_complete, confidence = await self.turn_detector.is_turn_complete()
+            if not is_complete and not is_backchannel:
+                print(f"[WEB {self.call_id}] Smart Turn: user not done yet (conf={confidence:.2f}), waiting...", flush=True)
+                await self._send_json({"type": "interim", "text": text})
+                return  # Don't respond yet, wait for more speech
+            
+            self.turn_detector.reset()  # Reset for next turn
+            
             print(f"[WEB {self.call_id}] User: {text}")
             self.transcript.append({"role": "user", "text": text})
             storage.append_transcript(self.call_id, "user", text)
