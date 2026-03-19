@@ -29,6 +29,7 @@ class WebCallSession:
         self.mute_stt = False  # Mute STT while AI is speaking (echo suppression)
         self._pending_bargein = False
         self._interrupted_context = False
+        self._chars_actually_played = 0
         self.chars_spoken = 0  # Track ElevenLabs character usage
 
         self.phone_fx = agent_config.get("phone_fx", True)  # Default ON
@@ -131,6 +132,9 @@ class WebCallSession:
         if self.current_llm_task and not self.current_llm_task.done():
             self.current_llm_task.cancel()
 
+        import time as _time
+        t0 = _time.monotonic()
+
         # If we were interrupted, inject context so LLM handles it naturally
         if getattr(self, '_interrupted_context', False):
             self._interrupted_context = False
@@ -141,20 +145,26 @@ class WebCallSession:
 
         full_response = ""
         sentence_buffer = ""
-        sentence_ends = {'.', '!', '?'}
         sentence_queue = asyncio.Queue()
+        import re
+        # Trigger TTS at any punctuation — much faster than waiting for 15+ chars
+        PUNCT = re.compile(r'[.!?,;:\-—]')
 
         async def on_text_chunk(chunk):
             nonlocal full_response, sentence_buffer
             full_response += chunk
             sentence_buffer += chunk
 
-            for i in range(len(sentence_buffer) - 1, -1, -1):
-                if sentence_buffer[i] in sentence_ends and len(sentence_buffer[:i+1].strip()) > 15:
-                    sentence = sentence_buffer[:i+1].strip()
-                    sentence_buffer = sentence_buffer[i+1:]
+            # Find last punctuation mark — send everything up to it
+            match = None
+            for m in PUNCT.finditer(sentence_buffer):
+                if m.start() >= 3:  # At least a few chars before punctuation
+                    match = m
+            if match:
+                sentence = sentence_buffer[:match.end()].strip()
+                sentence_buffer = sentence_buffer[match.end():]
+                if sentence:
                     await sentence_queue.put(sentence)
-                    break
 
         # Speaker task: reads sentences from queue and speaks them sequentially
         async def speaker():
@@ -172,9 +182,13 @@ class WebCallSession:
         filler_spoken = False
 
         original_on_text = on_text_chunk
+        llm_first_token = [False]
         async def on_text_chunk_with_filler(chunk):
             nonlocal filler_spoken
-            filler_spoken = True  # LLM started producing text
+            if not llm_first_token[0]:
+                llm_first_token[0] = True
+                print(f"[LATENCY {self.call_id}] LLM TTFT: {(_time.monotonic()-t0)*1000:.0f}ms", flush=True)
+            filler_spoken = True
             await original_on_text(chunk)
 
         async def soft_timeout():
@@ -231,6 +245,8 @@ class WebCallSession:
         async def on_audio_chunk(chunk: bytes):
             if not self.is_speaking:
                 raise asyncio.CancelledError()
+            # Track chars played (rough: 4800 bytes ≈ 100ms ≈ ~15 chars of speech)
+            self._chars_actually_played += max(1, len(chunk) // 320)
             if self.phone_fx:
                 try:
                     chunk = phone_effect(chunk, sample_rate=24000, **self.phone_fx_settings)
@@ -265,6 +281,17 @@ class WebCallSession:
             self.current_tts_task.cancel()
         if self.current_llm_task and not self.current_llm_task.done():
             self.current_llm_task.cancel()
+        # Truncate last assistant message to what was actually spoken
+        # (user didn't hear the rest, so don't include it in context)
+        if self._chars_actually_played > 0 and self.messages and self.messages[-1]["role"] == "assistant":
+            full_text = self.messages[-1]["content"]
+            # Estimate how much was played based on TTS chunks sent
+            # Each chunk ≈ 100ms of audio, rough char estimate
+            truncated = full_text[:self._chars_actually_played]
+            if truncated and truncated != full_text:
+                self.messages[-1]["content"] = truncated + "—"  # Mark as interrupted
+                print(f"[WEB {self.call_id}] Truncated context: '{truncated[:50]}...'", flush=True)
+        self._chars_actually_played = 0
         await self._send_json({"type": "clear_audio"})
 
     async def _send_json(self, data: dict):

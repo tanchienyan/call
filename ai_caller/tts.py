@@ -1,16 +1,28 @@
-"""ElevenLabs streaming TTS wrapper."""
+"""ElevenLabs streaming TTS wrapper with connection pooling."""
 import asyncio
 import httpx
 import config
 
 ELEVENLABS_API = "https://api.elevenlabs.io/v1"
 
+# Pre-warmed connection pool — avoids 300ms cold start per TTS call
+_tts_pool: httpx.AsyncClient | None = None
+
+
+def _get_pool() -> httpx.AsyncClient:
+    global _tts_pool
+    if _tts_pool is None:
+        _tts_pool = httpx.AsyncClient(
+            timeout=30,
+            http2=True,  # HTTP/2 multiplexing for parallel requests
+            limits=httpx.Limits(max_connections=5, max_keepalive_connections=3),
+        )
+    return _tts_pool
+
 
 async def stream_tts(text: str, voice_id: str, on_audio_chunk, **kwargs):
-    """Stream TTS audio from ElevenLabs. 
+    """Stream TTS audio from ElevenLabs with pre-warmed connection pool.
     Calls on_audio_chunk(pcm_bytes) for each audio chunk.
-    Uses streaming endpoint for low latency.
-    Output: 24kHz 16-bit PCM (mp3 decoded would be needed, so we use PCM output).
     """
     headers = {
         "xi-api-key": config.ELEVENLABS_API_KEY,
@@ -31,14 +43,14 @@ async def stream_tts(text: str, voice_id: str, on_audio_chunk, **kwargs):
     url = f"{ELEVENLABS_API}/text-to-speech/{voice_id}/stream?output_format={output_format}"
 
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            async with client.stream("POST", url, headers=headers, json=payload) as resp:
-                if resp.status_code != 200:
-                    error = await resp.aread()
-                    print(f"[TTS] Error {resp.status_code}: {error[:200]}")
-                    return
-                async for chunk in resp.aiter_bytes(chunk_size=4800):  # 100ms of 24kHz 16-bit
-                    await on_audio_chunk(chunk)
+        client = _get_pool()
+        async with client.stream("POST", url, headers=headers, json=payload) as resp:
+            if resp.status_code != 200:
+                error = await resp.aread()
+                print(f"[TTS] Error {resp.status_code}: {error[:200]}")
+                return
+            async for chunk in resp.aiter_bytes(chunk_size=4800):  # 100ms of 24kHz 16-bit
+                await on_audio_chunk(chunk)
     except asyncio.CancelledError:
         pass
     except Exception as e:

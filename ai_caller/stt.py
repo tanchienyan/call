@@ -30,7 +30,7 @@ class DeepgramSTT:
             f"&interim_results=true"
             f"&utterance_end_ms=1500"
             f"&vad_events=true"
-            f"&smart_format=true"
+            f"&smart_format=false"
         )
         headers = {"Authorization": f"Token {config.DEEPGRAM_API_KEY}"}
         
