@@ -15,7 +15,7 @@ async def stream_chat(messages: list[dict], on_text_chunk):
             model="gpt-4o",
             messages=messages,
             stream=True,
-            temperature=0.85,
+            temperature=1.0,
             max_tokens=300,
         )
         async for chunk in stream:

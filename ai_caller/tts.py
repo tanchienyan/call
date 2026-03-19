@@ -21,7 +21,7 @@ async def stream_tts(text: str, voice_id: str, on_audio_chunk, **kwargs):
         "text": text,
         "model_id": custom.get("model_id", "eleven_flash_v2_5"),
         "voice_settings": {
-            "stability": custom.get("stability", 0.30),
+            "stability": custom.get("stability", 0.12),
             "similarity_boost": custom.get("similarity_boost", 0.55),
             "style": custom.get("style", 0.18),
             "use_speaker_boost": True,

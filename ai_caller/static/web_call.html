@@ -119,8 +119,8 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
     </div>
     <div id="phoneFxSettings" style="margin-left:8px;border-left:2px solid var(--border);padding-left:12px">
       <div class="field">
-        <label>Noise Level <span id="noiseVal" style="float:right;color:var(--accent)">0.006</span></label>
-        <input type="range" id="noiseLevel" min="0" max="30" value="6" style="width:100%;accent-color:var(--accent)">
+        <label>Noise Level <span id="noiseVal" style="float:right;color:var(--accent)">0.002</span></label>
+        <input type="range" id="noiseLevel" min="0" max="30" value="2" style="width:100%;accent-color:var(--accent)">
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3)"><span>Clean</span><span>Noisy line</span></div>
       </div>
       <div class="field">
@@ -154,8 +154,8 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
     </script>
     <h2 style="margin-top:20px">🎛️ Voice Tuning</h2>
     <div class="field">
-      <label>Stability <span id="stabVal" style="float:right;color:var(--accent)">0.30</span></label>
-      <input type="range" id="stability" min="0" max="100" value="30" style="width:100%;accent-color:var(--accent)">
+      <label>Stability <span id="stabVal" style="float:right;color:var(--accent)">0.12</span></label>
+      <input type="range" id="stability" min="0" max="100" value="12" style="width:100%;accent-color:var(--accent)">
       <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3)"><span>Expressive</span><span>Monotone</span></div>
     </div>
     <div class="field">
@@ -292,7 +292,9 @@ async function init() {
       {id:'psk9KcJUa4i1Um9o4uxO',note:'⭐ Bruce — Steady, clear and direct'},
       {id:'dj3G1R1ilKoFKhBnWOzG',note:'⭐ Eryn — Friendly, warm'},
       {id:'OYTbf65OHHFELVut7v2H',note:'⭐ Hope — Upbeat, positive'},
-      {id:'IWNl2N9h4kpb5pOZn2NT',note:'⭐ Zain — Deep, dramatic (Malay accent)'},
+      {id:'cALE2CwoMM2QxiEdDEhv',note:'⭐ Valentine — Serious, neutral (SE Asian male)'},
+      {id:'wIwafQRMRzBqGgHCoUm0',note:'⭐ Jawid Iqbal — Calm podcast host (Malaysian male)'},
+      {id:'o4F3eqwVP8DYYqtFMtrd',note:'⭐ Custom Voice'},
     ];
     const recIds = new Set(recommended.map(r=>r.id));
     const professional = voices.filter(v=>v.category==='professional' && !recIds.has(v.voice_id));

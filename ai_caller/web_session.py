@@ -27,6 +27,8 @@ class WebCallSession:
         self.current_tts_task = None
         self.current_llm_task = None
         self.mute_stt = False  # Mute STT while AI is speaking (echo suppression)
+        self._pending_bargein = False
+        self._interrupted_context = False
         self.chars_spoken = 0  # Track ElevenLabs character usage
 
         self.phone_fx = agent_config.get("phone_fx", True)  # Default ON
@@ -59,15 +61,26 @@ class WebCallSession:
         storage.update_call(self.call_id, status="connected",
                            started_at=self.started_at.isoformat())
 
-        # Send first message
-        first_msg = self.agent_config.get("first_message", "")
-        if first_msg:
-            try:
-                await self._speak(first_msg, record_as="agent")
-                print(f"[WEB {self.call_id}] First message spoken")
-            except Exception as e:
-                print(f"[WEB {self.call_id}] First message failed: {e}")
-                import traceback; traceback.print_exc()
+        # Generate opening line via LLM (so it varies each time)
+        try:
+            self.messages.append({
+                "role": "user",
+                "content": "[The customer just picked up the phone. Say your opening line — greet them naturally and check if you're speaking to the right person. Vary your greeting each time — don't always start the same way.]"
+            })
+            opening = ""
+            async def collect_opening(chunk):
+                nonlocal opening
+                opening += chunk
+            await stream_chat(self.messages, collect_opening)
+            if opening:
+                # Replace the fake user message with the actual opening flow
+                self.messages.pop()  # Remove the instruction
+                self.messages.append({"role": "assistant", "content": opening})
+                await self._speak(opening, record_as="agent")
+                print(f"[WEB {self.call_id}] Opening: {opening}", flush=True)
+        except Exception as e:
+            print(f"[WEB {self.call_id}] Opening failed: {e}", flush=True)
+            import traceback; traceback.print_exc()
 
     async def handle_audio(self, audio_bytes: bytes):
         """Receive raw PCM 16-bit 16kHz audio from browser."""
@@ -76,26 +89,55 @@ class WebCallSession:
 
     async def _on_speech_started(self):
         if self.is_speaking:
-            print(f"[WEB {self.call_id}] Barge-in!")
-            await self._stop_speaking()
+            # Don't immediately barge-in — wait for actual transcript
+            # to distinguish backchannel ("mm-hm") from real interruption
+            self._pending_bargein = True
+            print(f"[WEB {self.call_id}] Speech detected during AI turn, waiting for transcript...", flush=True)
 
     async def _on_stt_transcript(self, text: str, is_final: bool):
         if is_final and text:
+            # Check if this is a backchannel during AI speech
+            BACKCHANNELS = {"mm", "mmm", "mhm", "mm-hm", "mm-hmm", "uh-huh", "uh huh",
+                           "yeah", "yep", "yes", "right", "okay", "ok", "sure", "got it",
+                           "ah", "oh", "hm", "hmm"}
+            is_backchannel = text.strip().lower().rstrip('.!?,') in BACKCHANNELS
+
+            if self.is_speaking and is_backchannel:
+                # Backchannel — don't interrupt, just log it
+                print(f"[WEB {self.call_id}] Backchannel (ignored): {text}", flush=True)
+                self._pending_bargein = False
+                await self._send_json({"type": "transcript", "role": "user", "text": f"({text})"})
+                return
+
+            if self.is_speaking or getattr(self, '_pending_bargein', False):
+                # Real interruption — stop and note what AI was saying
+                print(f"[WEB {self.call_id}] Real barge-in: {text}", flush=True)
+                self._pending_bargein = False
+                # Remember what AI was saying when interrupted
+                self._interrupted_context = True
+                await self._stop_speaking()
+
             print(f"[WEB {self.call_id}] User: {text}")
             self.transcript.append({"role": "user", "text": text})
             storage.append_transcript(self.call_id, "user", text)
             self.messages.append({"role": "user", "content": text})
 
-            # Send transcript to browser for display
             await self._send_json({"type": "transcript", "role": "user", "text": text})
             asyncio.create_task(self._generate_response())
         elif text:
-            # Send interim for display
             await self._send_json({"type": "interim", "text": text})
 
     async def _generate_response(self):
         if self.current_llm_task and not self.current_llm_task.done():
             self.current_llm_task.cancel()
+
+        # If we were interrupted, inject context so LLM handles it naturally
+        if getattr(self, '_interrupted_context', False):
+            self._interrupted_context = False
+            self.messages.insert(-1, {
+                "role": "system",
+                "content": "[You were just interrupted mid-sentence. Acknowledge briefly — 'Sorry, go ahead' or 'Oh right —' then respond to what they said. Don't repeat what you were saying before.]"
+            })
 
         full_response = ""
         sentence_buffer = ""
@@ -179,7 +221,8 @@ class WebCallSession:
             return
 
         self.is_speaking = True
-        self.mute_stt = True
+        # Don't mute STT — we need to hear backchannels and real interruptions
+        # self.mute_stt = True
         self.chars_spoken += len(text)
         await self._send_json({"type": "speaking", "state": True})
         await self._send_json({"type": "cost_update", "chars": self.chars_spoken})
@@ -207,7 +250,7 @@ class WebCallSession:
             pass
         finally:
             self.is_speaking = False
-            self.mute_stt = False  # Resume STT after speaking
+            # self.mute_stt = False
             await self._send_json({"type": "speaking", "state": False})
 
         if record_as:
