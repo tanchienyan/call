@@ -1,9 +1,31 @@
-"""Tiny server for web call testing."""
-from http.server import HTTPServer, SimpleHTTPRequestHandler
-import json, urllib.request, ssl
+"""Tiny local proxy for the legacy Retell browser-SDK demo.
 
-API_KEY = "key_172f6e7584a1116764d25f88a352"
-AGENT_ID = "agent_a8ede5afc28f6ed16682a94e75"
+NOTE: This predates the self-hosted ai_caller/ pipeline. Kept as a
+reference only. Do NOT hardcode API keys here; read from env.
+"""
+import json
+import os
+import ssl
+import sys
+import urllib.request
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+API_KEY = os.getenv("RETELL_API_KEY", "")
+AGENT_ID = os.getenv("RETELL_AGENT_ID", "")
+
+if not API_KEY or not AGENT_ID:
+    sys.stderr.write(
+        "ERROR: RETELL_API_KEY and RETELL_AGENT_ID must be set in the environment.\n"
+        "Copy .env.example to .env and fill in the values, or export them directly.\n"
+    )
+    sys.exit(1)
+
 
 class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
@@ -32,5 +54,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
-print("Server running at http://localhost:8877")
-HTTPServer(("localhost", 8877), Handler).serve_forever()
+
+if __name__ == "__main__":
+    print("Server running at http://localhost:8877")
+    HTTPServer(("localhost", 8877), Handler).serve_forever()
