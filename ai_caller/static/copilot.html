@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rivorix Copilot — Live Call Assist</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #08090c; --bg2: #0d0f14; --surface: #12151c; --surface2: #181c26;
+  --surface3: #232836; --border: #252a38; --border-l: #313748;
+  --text: #f4f5f8; --text2: #a0a5b8; --text3: #5c6278;
+  --accent: #7c6aff; --accent2: #9b8fff;
+  --green: #22c55e; --green-bg: rgba(34,197,94,0.1);
+  --amber: #f59e0b; --amber-bg: rgba(245,158,11,0.12);
+  --red: #ef4444; --red-bg: rgba(239,68,68,0.12);
+  --blue: #3b82f6; --blue-bg: rgba(59,130,246,0.12);
+  --radius: 10px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:'Inter',system-ui,sans-serif;
+  background:var(--bg); color:var(--text);
+  min-height:100vh; display:flex; flex-direction:column;
+  overflow:hidden; height:100vh;
+}
+
+/* Header */
+.topbar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 24px; background:var(--bg2);
+  border-bottom:1px solid var(--border);
+}
+.topbar-left { display:flex; align-items:center; gap:18px; }
+.logo { font-weight:800; font-size:17px; letter-spacing:-0.3px; }
+.logo span { color:var(--accent2); }
+.call-badge {
+  display:flex; align-items:center; gap:8px;
+  padding:6px 12px; background:var(--surface);
+  border:1px solid var(--border); border-radius:6px;
+  font-size:12px; color:var(--text2); font-family:'JetBrains Mono',monospace;
+}
+.call-badge .dot { width:6px; height:6px; border-radius:50%; background:var(--text3); }
+.call-badge.live .dot { background:var(--green); animation:pulse 1.4s infinite; }
+.call-badge.ended .dot { background:var(--red); }
+.topbar-right { display:flex; align-items:center; gap:20px; font-size:12px; color:var(--text2); }
+.metric { display:flex; align-items:baseline; gap:6px; }
+.metric-val { font-weight:600; color:var(--text); font-family:'JetBrains Mono',monospace; }
+
+/* Main 3-panel grid */
+.panels {
+  flex:1; display:grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap:1px; background:var(--border); overflow:hidden;
+}
+.panel {
+  background:var(--bg); display:flex; flex-direction:column; overflow:hidden;
+}
+.panel-header {
+  padding:14px 18px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--bg2);
+}
+.panel-title {
+  font-size:11px; font-weight:700; text-transform:uppercase;
+  letter-spacing:1.2px; color:var(--text2);
+}
+.panel-count {
+  font-size:11px; font-weight:600;
+  padding:2px 8px; border-radius:10px;
+  background:var(--surface2); color:var(--text2);
+}
+.panel-body {
+  flex:1; overflow-y:auto; padding:14px 18px;
+}
+
+/* Transcript panel */
+.transcript-msg {
+  margin-bottom:14px; opacity:0; animation:fadeIn 0.3s forwards;
+}
+.msg-meta {
+  display:flex; align-items:center; gap:8px;
+  font-size:10px; text-transform:uppercase; letter-spacing:1px;
+  font-weight:700; margin-bottom:4px;
+}
+.msg-meta .role-dot { width:6px; height:6px; border-radius:50%; }
+.agent .role-dot { background:var(--accent2); }
+.agent .role-label { color:var(--accent2); }
+.user .role-dot { background:var(--green); }
+.user .role-label { color:var(--green); }
+.system .role-dot { background:var(--amber); }
+.system .role-label { color:var(--amber); }
+.msg-time { color:var(--text3); font-weight:400; margin-left:auto; font-family:'JetBrains Mono',monospace; }
+.msg-text {
+  font-size:14px; line-height:1.55; color:var(--text);
+  padding:10px 14px; background:var(--surface);
+  border-radius:var(--radius); border-left:2px solid transparent;
+}
+.agent .msg-text { border-left-color:var(--accent); }
+.user .msg-text { border-left-color:var(--green); }
+.interim {
+  font-size:13px; font-style:italic; color:var(--text3);
+  padding:8px 14px; background:transparent;
+}
+
+/* Coaching panel */
+.card {
+  margin-bottom:10px; padding:14px;
+  background:var(--surface); border-radius:var(--radius);
+  border-left:3px solid var(--blue); position:relative;
+  animation:slideIn 0.25s ease-out;
+}
+.card.amber { border-left-color:var(--amber); background:var(--amber-bg); }
+.card.green { border-left-color:var(--green); background:var(--green-bg); }
+.card.red { border-left-color:var(--red); background:var(--red-bg); }
+.card-title {
+  font-size:12px; font-weight:700; margin-bottom:6px;
+  display:flex; align-items:center; gap:8px;
+}
+.card.amber .card-title { color:var(--amber); }
+.card.green .card-title { color:var(--green); }
+.card.red .card-title { color:var(--red); }
+.card-suggestion {
+  font-size:13px; line-height:1.5; color:var(--text);
+  margin-top:4px;
+}
+.card-trigger {
+  font-size:10px; color:var(--text3); margin-top:8px;
+  font-family:'JetBrains Mono',monospace;
+  padding-top:8px; border-top:1px solid var(--border);
+}
+
+/* Compliance panel */
+.compliance-list { display:flex; flex-direction:column; gap:8px; }
+.compliance-item {
+  display:flex; align-items:flex-start; gap:10px;
+  padding:11px 14px; background:var(--surface);
+  border-radius:var(--radius); border-left:2px solid var(--border-l);
+  transition:all 0.2s;
+}
+.compliance-item.pending { opacity:0.65; }
+.compliance-item.satisfied {
+  border-left-color:var(--green); background:var(--green-bg); opacity:1;
+}
+.compliance-item.fired {
+  border-left-color:var(--red); background:var(--red-bg);
+  animation:flashRed 0.6s ease-out, pulse-shadow 2s infinite;
+}
+.compliance-check {
+  flex-shrink:0; width:18px; height:18px; border-radius:4px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:800; margin-top:1px;
+}
+.pending .compliance-check { background:var(--surface3); color:var(--text3); }
+.satisfied .compliance-check { background:var(--green); color:#000; }
+.fired .compliance-check { background:var(--red); color:#fff; }
+.compliance-body { flex:1; min-width:0; }
+.compliance-title { font-size:12.5px; font-weight:600; margin-bottom:3px; line-height:1.3; }
+.compliance-evidence {
+  font-size:11px; color:var(--text2); margin-top:6px;
+  font-family:'JetBrains Mono',monospace; font-style:italic;
+  padding-top:6px; border-top:1px dashed var(--border);
+}
+.compliance-severity {
+  font-size:9px; text-transform:uppercase; letter-spacing:1.2px;
+  font-weight:700; padding:1px 6px; border-radius:3px;
+  margin-left:auto;
+}
+.compliance-severity.critical { background:var(--red); color:#fff; }
+.compliance-severity.high { background:var(--amber); color:#000; }
+.compliance-severity.medium { background:var(--surface3); color:var(--text2); }
+
+/* Empty states */
+.empty {
+  padding:40px 20px; text-align:center; color:var(--text3);
+  font-size:13px; line-height:1.6;
+}
+.empty-icon { font-size:32px; margin-bottom:10px; opacity:0.4; }
+
+/* Animations */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+@keyframes fadeIn { to { opacity:1; } }
+@keyframes slideIn { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
+@keyframes flashRed {
+  0% { background:rgba(239,68,68,0.5); }
+  100% { background:var(--red-bg); }
+}
+@keyframes pulse-shadow {
+  0%,100% { box-shadow:0 0 0 0 rgba(239,68,68,0); }
+  50% { box-shadow:0 0 0 4px rgba(239,68,68,0.18); }
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border-l); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:var(--text3); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">Rivorix<span>·</span>Copilot</div>
+    <div class="call-badge" id="callBadge">
+      <div class="dot"></div>
+      <span id="callIdLabel">Waiting for call…</span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="metric"><span>Duration</span><span class="metric-val" id="durationMetric">00:00</span></div>
+    <div class="metric"><span>Turns</span><span class="metric-val" id="turnsMetric">0</span></div>
+    <div class="metric"><span>Latency</span><span class="metric-val" id="latencyMetric">—</span></div>
+    <div class="metric"><span>Compliance</span><span class="metric-val" id="complianceMetric">—</span></div>
+  </div>
+</div>
+
+<div class="panels">
+  <!-- LEFT: Live transcript -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Live Transcript</div>
+      <div class="panel-count" id="transcriptCount">0 turns</div>
+    </div>
+    <div class="panel-body" id="transcriptBody">
+      <div class="empty">
+        <div class="empty-icon">∷</div>
+        Waiting for first utterance…
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: Coaching cards -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Coaching</div>
+      <div class="panel-count" id="coachingCount">0 cards</div>
+    </div>
+    <div class="panel-body" id="coachingBody">
+      <div class="empty">
+        <div class="empty-icon">◎</div>
+        Objection handling and next-best-action will appear here when triggered.
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Compliance -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">PIAM Compliance</div>
+      <div class="panel-count" id="complianceCount">—</div>
+    </div>
+    <div class="panel-body" id="complianceBody">
+      <div class="empty">
+        <div class="empty-icon">⎈</div>
+        Compliance checklist loads when the call starts.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const callId = params.get('call_id');
+
+let ws = null;
+let startedAt = null;
+let turnCount = 0;
+let lastTurnTs = null;
+const complianceState = new Map();
+
+if (!callId) {
+  document.getElementById('callIdLabel').textContent = 'Missing ?call_id=...';
+} else {
+  connect();
+}
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws/copilot/${callId}`);
+
+  ws.onopen = () => {
+    document.getElementById('callIdLabel').textContent = callId;
+    document.getElementById('callBadge').classList.add('live');
+  };
+
+  ws.onmessage = (evt) => {
+    const event = JSON.parse(evt.data);
+    handleEvent(event);
+  };
+
+  ws.onclose = () => {
+    document.getElementById('callBadge').classList.remove('live');
+    document.getElementById('callBadge').classList.add('ended');
+  };
+}
+
+function handleEvent(event) {
+  switch (event.type) {
+    case 'transcript':      return renderTranscript(event);
+    case 'coaching_card':   return renderCoachingCard(event);
+    case 'compliance_snapshot': return renderComplianceSnapshot(event.snapshot);
+    case 'compliance_update':   return renderComplianceUpdate(event.flag);
+    case 'compliance_final':    return renderComplianceSnapshot(event.snapshot);
+    case 'transfer_initiated':  return renderTransferBanner(event);
+  }
+}
+
+function renderTransferBanner(event) {
+  // Insert a system banner into the transcript showing the handoff moment
+  const body = document.getElementById('transcriptBody');
+  if (turnCount === 0) body.innerHTML = '';
+
+  const div = document.createElement('div');
+  div.className = 'transcript-msg system';
+  div.innerHTML = `
+    <div class="msg-meta">
+      <div class="role-dot"></div>
+      <div class="role-label">HANDOFF</div>
+      <div class="msg-time">${new Date().toLocaleTimeString(undefined,{hour12:false})}</div>
+    </div>
+    <div class="msg-text" style="border-left-color:var(--amber); background:var(--amber-bg)">
+      ⚡ ${escape(event.message || 'Warm-transfer initiated')}
+    </div>
+  `;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+
+  // Visual cue: switch topbar badge
+  const badge = document.getElementById('callBadge');
+  badge.innerHTML = '<div class="dot"></div><span>Human closer on line</span>';
+}
+
+function renderTranscript(event) {
+  const body = document.getElementById('transcriptBody');
+  if (turnCount === 0) body.innerHTML = '';
+  turnCount++;
+  if (!startedAt) { startedAt = Date.now(); startDurationTimer(); }
+
+  // Latency = time since our last turn
+  const now = Date.now();
+  if (lastTurnTs) {
+    const latMs = now - lastTurnTs;
+    document.getElementById('latencyMetric').textContent = latMs + 'ms';
+  }
+  lastTurnTs = now;
+
+  const time = new Date((event.ts || Date.now()/1000) * 1000).toLocaleTimeString(
+    undefined, { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' }
+  );
+
+  const div = document.createElement('div');
+  div.className = `transcript-msg ${event.role}`;
+  div.innerHTML = `
+    <div class="msg-meta">
+      <div class="role-dot"></div>
+      <div class="role-label">${event.role === 'agent' ? 'AI Agent' : event.role}</div>
+      <div class="msg-time">${time}</div>
+    </div>
+    <div class="msg-text">${escape(event.text)}</div>
+  `;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+
+  document.getElementById('transcriptCount').textContent = turnCount + ' turn' + (turnCount === 1 ? '' : 's');
+  document.getElementById('turnsMetric').textContent = turnCount;
+}
+
+function renderCoachingCard(event) {
+  const body = document.getElementById('coachingBody');
+  if (body.querySelector('.empty')) body.innerHTML = '';
+
+  const div = document.createElement('div');
+  div.className = `card ${event.color || 'blue'}`;
+  div.innerHTML = `
+    <div class="card-title">${escape(event.title)}</div>
+    <div class="card-suggestion">${escape(event.suggestion)}</div>
+    <div class="card-trigger">triggered by: "${escape(event.triggered_by || '').slice(0,90)}"</div>
+  `;
+  body.insertBefore(div, body.firstChild);
+
+  const count = body.querySelectorAll('.card').length;
+  document.getElementById('coachingCount').textContent = count + ' card' + (count === 1 ? '' : 's');
+}
+
+function renderComplianceSnapshot(snapshot) {
+  const body = document.getElementById('complianceBody');
+  body.innerHTML = '';
+  snapshot.flags.forEach(f => { complianceState.set(f.rule_id, f); });
+
+  // Render in priority order: fired first, then pending, then satisfied
+  const order = ['fired', 'pending', 'satisfied'];
+  const list = document.createElement('div');
+  list.className = 'compliance-list';
+
+  order.forEach(status => {
+    snapshot.flags.filter(f => f.status === status).forEach(f => {
+      list.appendChild(renderComplianceItem(f));
+    });
+  });
+
+  body.appendChild(list);
+  updateComplianceMetric();
+}
+
+function renderComplianceUpdate(flag) {
+  complianceState.set(flag.rule_id, flag);
+  // Re-render the whole list so ordering stays correct
+  const snapshot = { flags: Array.from(complianceState.values()) };
+  renderComplianceSnapshot(snapshot);
+}
+
+function renderComplianceItem(f) {
+  const div = document.createElement('div');
+  div.className = `compliance-item ${f.status}`;
+  div.id = 'comp-' + f.rule_id;
+
+  const icon = f.status === 'satisfied' ? '✓' : f.status === 'fired' ? '!' : '';
+  div.innerHTML = `
+    <div class="compliance-check">${icon}</div>
+    <div class="compliance-body">
+      <div class="compliance-title">
+        ${escape(f.title)}
+        <span class="compliance-severity ${f.severity || 'medium'}">${f.severity || 'med'}</span>
+      </div>
+      ${f.evidence ? `<div class="compliance-evidence">${escape(f.evidence).slice(0, 200)}</div>` : ''}
+    </div>
+  `;
+  return div;
+}
+
+function updateComplianceMetric() {
+  const total = complianceState.size;
+  if (!total) return;
+  const fired = Array.from(complianceState.values()).filter(f => f.status === 'fired').length;
+  const sat = Array.from(complianceState.values()).filter(f => f.status === 'satisfied').length;
+  const label = fired > 0
+    ? `<span style="color:var(--red)">${fired} violation${fired === 1 ? '' : 's'}</span>`
+    : `${sat}/${total} ok`;
+  document.getElementById('complianceMetric').innerHTML = label;
+  document.getElementById('complianceCount').textContent = `${sat}/${total}`;
+}
+
+function startDurationTimer() {
+  setInterval(() => {
+    if (!startedAt) return;
+    const secs = Math.floor((Date.now() - startedAt) / 1000);
+    const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+    const ss = String(secs % 60).padStart(2, '0');
+    document.getElementById('durationMetric').textContent = `${mm}:${ss}`;
+  }, 1000);
+}
+
+function escape(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+</script>
+
+</body>
+</html>

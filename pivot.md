@@ -1,216 +1,399 @@
-# Development Plan: AI Healthcare Communication Platform
+# Pivot Strategy: AI-Powered Healthcare Patient Engagement for Southeast Asia
 
-## Context
+> **CTO Strategy Brief — v2.0 — April 2026**
 
-We have two working systems — an **AI outbound caller** (Twilio + Deepgram + GPT-4o + ElevenLabs) and an **AI mystery shopper** (Retell + email + webchat + WhatsApp) — and four documents mapping the opportunity space across two markets: **Bloom Healthcare Group** (Malaysia, 50+ outlets, dental/aesthetic/GP/spa) and **Bloom Healthcare** (US, 109-provider home-based senior care). This plan consolidates those inputs into a single development roadmap.
+## TL;DR
 
----
-
-## 1. Strategic Direction
-
-### Primary market: Southeast Asia (Malaysia first)
-
-The research is unambiguous. The US patient-recall market is a red ocean with seven funded incumbents (SolutionReach, Luma Health, Phreesia, Weave, Artera, Klara, Relatient). Southeast Asia has **zero AI outbound calling solutions for healthcare**. None of the US players support WhatsApp, Bahasa Malaysia, or SEA pricing norms.
-
-The competitive set in Malaysia is:
-- Manual WhatsApp by reception staff
-- Basic SMS blast features in local CMS platforms
-- Nothing else
-
-### Entry strategy: mystery shop as door opener, AI caller as core product
-
-Use the mystery shopper to **generate a free Communication Audit Report** for Bloom Healthcare Group's subsidiaries. This demonstrates value before asking for anything and surfaces the exact gaps the AI caller solves. Sell the outbound platform on documented evidence.
-
-### Target account: Bloom Healthcare Group (Salcon Berhad)
-
-Cantiq Clinic, Kheng Dental, and The Bloom Healthcare are **subsidiaries of one publicly-listed parent**. This is a single enterprise deal across 50+ outlets, not three separate pitches.
-
-**Entry point → Kheng Dental** (13+ branches, 100K patients, single WhatsApp bottleneck, clearest recall ROI from 6-month dental cycles).
+We built a production-grade AI outbound calling pipeline (Twilio + Deepgram + GPT-4o + ElevenLabs) that works across any scenario via JSON config. After deep competitive analysis, we're pivoting from generic BPO sales tooling — a crowded, long-cycle enterprise market — into **AI-driven patient recall and engagement for multi-brand healthcare chains in Southeast Asia**. First client: **The Bloom Healthcare Group** (Malaysia, 50+ outlets across Cantiq Clinic and Kheng Dental). No US incumbent operates in this niche. We ship in 3 weeks.
 
 ---
 
-## 2. What Exists Today
+## 1. Where We Are Today
 
-| Component | Status | Key tech |
-|-----------|--------|----------|
-| **AI outbound caller** (`ai_caller/`) | Working — phone + browser voice | Twilio, Deepgram Nova-3, GPT-4o streaming, ElevenLabs Flash v2.5, smart turn detection, barge-in, phone-line FX |
-| **Mystery shopper** (`mystery_shopper/`) | Working — multi-channel | Retell phone, SMTP/IMAP email, Playwright webchat, wacli WhatsApp |
-| **Mission dashboard** (`app/`) | Working — mission UI | Retell, email, webchat, scoring, timeline |
-| **Agent scenarios** | 4 generic scenarios | debt_reminder, appointment_confirm, satisfaction_survey, membership_renewal |
+### 1.1 Platform Capabilities
 
----
+The `ai_caller` pipeline is live and scenario-agnostic:
 
-## 3. What Needs to Be Built
+| Layer | Stack | Status |
+|-------|-------|--------|
+| Telephony | Twilio (PSTN + WebSocket) | Production |
+| STT | Deepgram Nova-3, streaming | Production |
+| LLM | GPT-4o with sub-500ms TTFT | Production |
+| TTS | ElevenLabs Flash v2.5 | Production |
+| Turn detection | Custom VAD + silence thresholds | Production |
+| Agent framework | JSON configs with Schegloff-style openings, filler words, backchannel, forbidden AI tells | Production |
+| Browser testing | WebSocket-based `/test` route, no phone needed | Production |
+| Storage | SQLite with full transcript logging | Production |
 
-### Phase 1: Healthcare-ready AI caller (Weeks 1–3)
+Four generic scenarios ship today (`appointment_confirm`, `debt_reminder`, `membership_renewal`, `satisfaction_survey`). The architecture is designed so that **new verticals are new JSON files, not new code**. This is the key leverage point for the pivot.
 
-The outbound caller works but has no healthcare-specific capabilities. These changes make it sellable to Bloom.
+### 1.2 The Road Not Taken: BPO / Teleservices
 
-**Agent configs for healthcare**
-- New agent JSONs: `dental_recall.json`, `aesthetic_followup.json`, `appointment_reminder.json`, `post_treatment_checkup.json`
-- System prompts tuned for Malaysian healthcare context (clinic names, treatment terminology, pricing in RM)
-- Template variables for patient name, clinic branch, treatment type, appointment date/time, doctor name
+We evaluated the BPO market through a detailed engagement with **United Tele Service (UTS)** — a publicly listed Malaysian outbound call center (1,225 agents, ~$20M revenue, zero AI adoption). The analysis revealed three problems with pursuing BPOs:
 
-**Multilingual support**
-- Bahasa Malaysia and Mandarin voice IDs in agent configs (ElevenLabs has multilingual voices)
-- System prompts that handle Malay-English code-switching naturally
-- Language detection or explicit language setting per patient
+**Long sales cycles.** Enterprise BPOs require 12-18 month proof-of-value cycles, six-figure pilots, and deep CRM integration. UTS's bank clients (Maybank, CIMB, Great Eastern) carry the regulatory risk and must approve every tooling change. We'd be selling through two layers of procurement.
 
-**WhatsApp as primary channel**
-- WhatsApp Business API integration (utility messages ~RM0.02/message)
-- WhatsApp-first outreach with voice call as escalation for non-responsive patients
-- Template messages for appointment reminders, recall nudges, post-treatment check-ins
-- Two-way conversation handling (patient replies → AI responds)
+**Crowded positioning.** The AI contact center market ($2.5B in 2024, ~20% CAGR) has well-funded incumbents at every layer: NICE CXone (22% share, acquired Cognigy for $955M), Genesys ($2.4B cloud ARR), Retell AI (10M+ min/month), Synthflow (4.9/5 G2, 200+ integrations), Observe.AI and CallMiner for QA. A seed-stage startup can't out-feature these players on their home turf.
 
-**Consent and compliance (PDPA)**
-- Opt-in/opt-out tracking per patient (consent date, channel preferences)
-- Call recording disclosure at start of every call
-- Do-not-call list enforcement
-- Caller ID transparency (clinic name displayed)
-- Business hours enforcement with Friday prayer time sensitivity
-- Data residency: Malaysia/Singapore hosting
+**Misaligned economics.** BPO revenue depends on agent headcount. AI that replaces agents kills the client's business model. AI that merely augments agents delivers incremental value that's hard to price aggressively. Gartner predicts 50% of orgs that planned customer service workforce reductions will abandon those plans by 2027.
 
-**Patient data model**
-- Patient records: name, phone, email, language preference, consent status, last visit, next due date, treatment history
-- CSV/Excel import for initial patient lists (clinics won't have APIs day one)
-- Basic CRM: patient status tracking, interaction history, outcome logging
-
-### Phase 2: Mystery shopper → Communication Audit (Weeks 2–4)
-
-Adapt the existing mystery shopper into a healthcare-specific audit tool that generates the sales collateral.
-
-**Healthcare audit scenarios**
-- New scenarios: dental clinic inquiry, aesthetic consultation booking, after-hours test, follow-up request, pricing inquiry
-- Score on: response time, information quality, language handling, booking ease, after-hours availability
-
-**Audit report generator**
-- Professional PDF/HTML report: "Communication Audit — [Clinic Name]"
-- Metrics: time-to-first-response, channel availability, information completeness, after-hours coverage
-- Gap analysis table (similar to the one in the compass research)
-- Revenue impact estimates (no-show rates × average treatment value × patient volume)
-- Comparison against industry benchmarks
-
-**Multi-branch execution**
-- Run audit across all branches of a chain in parallel
-- Branch-level and aggregate scoring
-- Identify worst-performing branches (highest ROI for intervention)
-
-### Phase 3: Dashboard and analytics (Weeks 4–6)
-
-**Clinic operator dashboard**
-- Per-branch call/message volume, success rates, patient responses
-- Recall conversion tracking (contacted → booked → attended)
-- No-show reduction metrics over time
-- Revenue recovered estimates
-- Real-time transcript viewer for active calls
-
-**Group-level dashboard (Bloom HQ)**
-- Cross-brand, cross-branch aggregate view
-- Bloom Rewards program activation through AI touchpoints
-- Cross-brand referral tracking (dental patient → aesthetic upsell)
-
-### Phase 4: CMS integration (Weeks 6–10)
-
-**Malaysian CMS connectors**
-- kumoDoc, Remedi, Docspe, MagSys, Germs CMS — start with whichever Bloom uses
-- Bi-directional sync: pull patient lists + appointment schedules, push back confirmed/rescheduled appointments
-- FHIR/HL7 support for larger health systems
-
-**Automated campaign triggers**
-- 6-month dental recall: auto-contact patients whose last scaling was 5+ months ago
-- Aesthetic rebooking: Botox patients at 3-month mark, laser patients at 2-week mark
-- Appointment reminder: 48h + 2h before scheduled visit
-- No-show follow-up: contact within 1 hour of missed appointment
-- Post-treatment check-in: 3 days after procedure
+The UTS competitive analysis remains valuable context — see **Appendix A** below.
 
 ---
 
-## 4. Technical Architecture
+## 2. The Opportunity: Healthcare Patient Recall in SEA
+
+### 2.1 The Gap
+
+Our GTM analysis flagged a clear market segmentation:
+
+| Market | Status | Why |
+|--------|--------|-----|
+| US AI patient recall | **Red ocean** | Luma Health, Klara, Phreesia, Weave, NexHealth — dozens of funded players. Requires HIPAA, US telephony, and competing against established EMR integrations. |
+| SEA AI patient recall (WhatsApp-first) | **Wide open** | No US incumbent operates here. Different regulatory regime (PDPA, not HIPAA). WhatsApp is the default communication channel, not SMS. Private healthcare chains are growing rapidly but run on manual recall. |
+
+The specific wedge: **AI-powered voice and message outreach for patient recall at multi-brand healthcare chains in Malaysia, Singapore, and Thailand.** Voice calling is the entry point (our existing pipeline); WhatsApp Business API is the expansion path.
+
+### 2.2 Why Malaysia First
+
+- **Regulatory advantage.** Malaysia's PDPA (2010, amended 2024) is lighter than HIPAA — no AI-specific voice disclosure statute, no class-action environment. Compliance is achievable at startup scale.
+- **Language fit.** Business conducted in English, Malay, and Mandarin — Deepgram Nova-3 supports all three, and ElevenLabs `eleven_multilingual_v2` handles the TTS side.
+- **WhatsApp penetration.** 97% of Malaysian smartphone users are on WhatsApp. Patient communication happens there, not via SMS or patient portals.
+- **Growing private healthcare.** Malaysia's private healthcare market is expanding at ~12% CAGR, driven by medical tourism and rising middle class. Chains are consolidating and need operational tooling.
+
+### 2.3 Bloom Healthcare Group — First Client
+
+| Attribute | Detail |
+|-----------|--------|
+| Parent brand | The Bloom Healthcare Group |
+| Sub-brands | **Cantiq Clinic** (aesthetics), **Kheng Dental** (dental) |
+| Outlets | 50+ across Malaysia |
+| Patient base | Est. 50,000-150,000 active patients across brands |
+| Current recall method | Manual staff calls, WhatsApp messages, or nothing |
+| Primary pain point | Lapsed patients = lost recurring revenue |
+
+**Treatment recall is the highest-ROI scenario.** A dental patient overdue for their 6-month cleaning, or a Botox patient due for a top-up, represents direct revenue recovery. If even 10% of lapsed patients rebook from an AI recall call:
+
+- Average dental cleaning: RM 150-300 (~$35-70)
+- Average aesthetics procedure: RM 500-3,000+ (~$115-700)
+- 50+ outlets × hundreds of overdue patients each = significant revenue recovered monthly
+
+The ROI story writes itself: "We recovered RM X in lapsed revenue this month. Our service costs RM Y."
+
+### 2.4 Expansion Path
+
+Bloom is the beachhead. The playbook scales to:
+
+| Phase | Target | Market |
+|-------|--------|--------|
+| Now | Bloom Healthcare Group | Malaysia |
+| 6 months | Q&M Dental (100+ outlets), Ko Skin Specialist (10+) | Malaysia / Singapore |
+| 12 months | IHH Healthcare (80+ hospitals), Bangkok Dusit Medical | Regional SEA |
+| 18 months | Pharma patient adherence programs | Regional SEA |
+
+---
+
+## 3. Product Architecture
+
+### 3.1 Six Healthcare Scenarios (Priority Order)
+
+| # | Scenario | Purpose | Revenue Signal |
+|---|----------|---------|----------------|
+| 1 | **Treatment Recall** | Proactive outreach for overdue patients (dental checkup, Botox top-up, annual screening) | Direct revenue recovery — highest ROI |
+| 2 | **Appointment Reminder** | 24-48h before appointments, with reschedule/cancel handling | Reduces no-shows (industry avg 5-7% → target <2%) |
+| 3 | **No-Show Follow-up** | Same-day/next-morning after missed appointment, concerned not accusatory | Recovers missed appointments |
+| 4 | **Post-Treatment Follow-up** | 24-72h after procedures, symptom check | Patient safety + satisfaction, brand differentiation |
+| 5 | **Patient Satisfaction** | NPS + 3-4 questions, under 2 minutes, 3-7 days post-visit | Operational intelligence for Bloom |
+| 6 | **Promo Outreach** | New services, seasonal offers, must identify as promotional early | Upsell channel |
+
+All six scenarios share a healthcare compliance preamble (recording consent, no medical advice, third-party privacy, opt-out handling) and Malaysian English communication style.
+
+**Hard boundaries enforced in every agent prompt:**
+- NEVER diagnose, minimize symptoms, or say "that's normal"
+- NEVER disclose medical details to third parties
+- NEVER pressure patients — offer to have clinic call back
+- Always offer opt-out from future calls
+
+### 3.2 Multi-Brand Engine
+
+New `agents/brands/` directory with JSON profiles:
 
 ```
-Patient ← WhatsApp/Voice → AI Platform → Clinic CMS/PMS
-                                ├── WhatsApp Business API (primary)
-                                ├── Twilio Voice (escalation)
-                                ├── Deepgram STT
-                                ├── GPT-4o (conversation)
-                                ├── ElevenLabs TTS
-                                ├── Campaign scheduler
-                                ├── Consent manager
-                                └── Analytics DB
+bloom_healthcare.json  — parent brand, general wellness tone
+cantiq_clinic.json     — premium, warm, aspirational ("going beautifully")
+kheng_dental.json      — professional, friendly ("how's everything feeling")
 ```
 
-**Infrastructure decisions:**
-- Cloud: AWS Singapore or GCP asia-southeast1 (data residency)
-- Database: PostgreSQL (upgrade from SQLite for production)
-- Queue: Redis for campaign scheduling and rate limiting
-- WhatsApp: Official Business API via Meta Cloud API or BSP (360dialog, Twilio)
-- Hosting: containerized (Docker), auto-scaling for campaign bursts
+Brand config merges into agent behavior at call time: `brand_id` on the API request triggers tone injection, default voice selection, and variable population (outlet address, phone number, etc.). Call-level variables override brand defaults.
+
+### 3.3 Trilingual Pipeline
+
+Each scenario ships in 3 language variants (18 JSON files total):
+
+| Language | STT | TTS Model | Voice Selection |
+|----------|-----|-----------|-----------------|
+| English | Deepgram Nova-3 `en` | ElevenLabs Flash v2.5 | Existing voice library |
+| Bahasa Melayu | Deepgram Nova-3 `ms` | ElevenLabs Multilingual v2 | Malay-capable voices |
+| Mandarin | Deepgram Nova-3 `zh` | ElevenLabs Multilingual v2 | Mandarin-capable voices |
+
+Each variant has its full system prompt and first message written natively (not translated) — including culturally appropriate filler words, honorifics (`Encik`/`Puan` for Malay), and natural phone conversation patterns.
+
+**Technical changes required:**
+- `stt.py`: Add `language` param to Deepgram WebSocket URL
+- `tts.py`: Switch to `eleven_multilingual_v2` for non-English variants
+- `caller.py`: Route `+60` numbers through Malaysian Twilio number
+- `config.py`: Add `TWILIO_PHONE_NUMBER_MY` env var
+
+### 3.4 PDPA Compliance Layer
+
+New `compliance.py` module, checked before every outbound call:
+
+| Check | Implementation |
+|-------|---------------|
+| DNC list | SQLite table of opted-out numbers, checked pre-call |
+| Call hours | Block calls before 9 AM / after 9 PM MYT |
+| Phone validation | Malaysian format `+60` verification |
+| Consent status | Per-patient consent tracking |
+| Data retention | Auto-purge transcripts after 90 days (PDPA data minimization) |
+| Recording consent | Agent asks after identity confirmation on every call |
 
 ---
 
-## 5. Pricing (Malaysian market)
+## 4. Competitive Position
 
-| Tier | Target | Price | Includes |
-|------|--------|-------|----------|
-| **Starter** | Solo clinic (1 location) | RM149/mo (~$35) | 500 AI calls + 1,000 WhatsApp messages, 1 language, basic recall |
-| **Growth** | Small chain (2–5 locations) | RM249/mo per outlet (~$58) | 1,000 AI calls + 3,000 WhatsApp, 2 languages, recall + reminders |
-| **Enterprise** | Group (6+ locations) | RM199/mo per outlet (~$46) | Unlimited, all languages, full omnichannel, cross-brand, dedicated support |
+### 4.1 Why No One Owns This Niche
 
-At RM199/mo × 50 outlets = **RM9,950/mo (~$2,300 USD)** from Bloom alone. Month-to-month, no lock-in.
+The US patient recall market has 15+ funded startups (Luma, Klara, Weave, NexHealth, Phreesia, etc.) all fighting for the same EMR-integrated, SMS-based, HIPAA-compliant workflow. They have zero incentive or infrastructure to serve SEA:
 
----
+- No WhatsApp integration (SMS-centric)
+- No Malay/Mandarin language support
+- No PDPA expertise (they're built for HIPAA)
+- No Malaysian telephony (Twilio coverage exists, but no one's using it)
+- No understanding of multi-brand chains with different brand voices
 
-## 6. US Market (Secondary, Later)
+**Our defensibility compounds over time.** Every call generates training data for Malaysian healthcare conversations — accent patterns, code-switching (Manglish), medical terminology in local context. This data moat gets wider with every Bloom outlet onboarded.
 
-The US Bloom Healthcare (home-based senior care, CO/TX) represents a **separate, higher-ACV opportunity** with different requirements:
+### 4.2 Adjacent Competitors to Monitor
 
-- HIPAA compliance (BAAs, encryption, audit trails, 6-year retention)
-- TCPA consent management (prior express consent, 8am–9pm calling windows, opt-out handling)
-- eClinicalWorks EHR integration (HL7/FHIR)
-- Pricing at $3,000–$8,000/mo (10–40x the Malaysian per-outlet rate)
-- English-only, no WhatsApp (SMS + voice)
+| Player | Threat Level | Why |
+|--------|-------------|-----|
+| Plato (SG) | Medium | Healthcare comms in SEA, but focused on chat/scheduling, not voice |
+| Local WhatsApp marketing agencies | Low | Manual, no AI, no voice |
+| Retell/Bland/Vapi entering SEA | Low-Medium | Generic platforms, no healthcare vertical, no local language | 
+| Bloom building in-house | Low | They're a healthcare company, not a tech company |
 
-**Do not pursue simultaneously.** The compliance surface area, integration requirements, and sales cycle are fundamentally different. The Malaysian deployment builds the core product; the US expansion leverages it with a compliance and integration layer on top.
+### 4.3 AI Voice Agent Pricing Benchmarks
 
----
+For context on our cost position:
 
-## 7. Go-to-Market Timeline
+| Platform | $/min | Notes |
+|----------|-------|-------|
+| Bland AI | $0.12-0.14 | API-only, no vertical specialization |
+| Vapi | $0.13-0.25 | Middleware, requires engineering |
+| Retell AI | $0.05-0.14 | Best latency, but generic |
+| Synthflow | $0.08-0.19 | No-code, white-label |
+| Amazon Connect | $0.018 | Raw infrastructure, no agent framework |
+| **Our COGS** | **~$0.04** | Twilio + Deepgram + GPT-4o + ElevenLabs |
 
-| Week | Milestone |
-|------|-----------|
-| **1** | Mystery shop Kheng Dental (all 13 branches) and Cantiq (all 5 branches) |
-| **2** | Generate Communication Audit Reports; build healthcare agent configs |
-| **3** | Present audit to Bloom operations/IT contact; propose free 30-day pilot |
-| **4** | WhatsApp Business API approved; dental recall + appointment reminder agents live |
-| **5–8** | Pilot at 2–3 Kheng Dental branches (highest traffic); measure no-show reduction and recall conversion |
-| **9** | Present pilot results to Bloom Group corporate; propose group rollout |
-| **10–14** | Roll out across all Kheng Dental branches, then Cantiq |
-| **15+** | Remaining Bloom brands (Aessence, MediPulih, Antara); begin second customer acquisition |
-
----
-
-## 8. Success Metrics for Pilot
-
-| Metric | Target |
-|--------|--------|
-| No-show reduction | ≥20% vs. baseline |
-| 6-month recall conversion | ≥10% of lapsed patients rebook |
-| Patient response rate (WhatsApp) | ≥60% |
-| Patient response rate (voice) | ≥40% |
-| Time-to-first-contact (after trigger) | <5 minutes |
-| Patient satisfaction (post-call survey) | ≥4/5 |
-| Cost per successful contact | <RM2 |
+We're at the infrastructure layer, not buying from middleware. This gives us room to price competitively while maintaining 80%+ gross margins.
 
 ---
 
-## 9. Risks
+## 5. Unit Economics
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| PDPA non-compliance | RM1M fine, reputation damage | Built-in consent management, legal review of scripts, call recording disclosure |
-| Calls flagged as scam (MCMC) | Numbers blocked | Clinic name identification upfront, registered caller ID, business hours only |
-| WhatsApp Business API rejection | Lose primary channel | Apply early, maintain quality rating, use BSP as backup |
-| Bloom says no | No anchor customer | Audit report is free value regardless; use it to approach other chains |
-| Malay/Mandarin voice quality | Poor patient experience | Test ElevenLabs multilingual voices extensively; fall back to English if quality insufficient |
-| CMS integration complexity | Delayed automation | Start with CSV import; build CMS connectors based on what Bloom actually uses |
-| Low patient pickup rate | Weak pilot results | WhatsApp-first (higher engagement than voice); optimize send times; A/B test message templates |
+### 5.1 Cost Per Call
+
+| Component | Cost/min | Per 2-min call |
+|-----------|----------|----------------|
+| Twilio (MY outbound) | $0.018 | $0.036 |
+| Deepgram Nova-3 | $0.005 | $0.010 |
+| ElevenLabs Flash v2.5 | $0.008 | $0.016 |
+| GPT-4o (est. ~800 tokens/min) | $0.005 | $0.010 |
+| **Total COGS** | **~$0.036** | **~$0.072** |
+
+Average call duration estimate: 1.5 min (reminders/recalls) to 3 min (surveys/follow-ups). Blended average: ~2 min.
+
+### 5.2 Revenue Model
+
+**Option A — Per-outlet subscription (recommended):**
+
+| Tier | Monthly / outlet | Includes | Target |
+|------|-----------------|----------|--------|
+| Starter | RM 500 (~$115) | 500 calls/month, 1 language, 3 scenarios | Small clinics |
+| Growth | RM 1,200 (~$275) | 2,000 calls/month, 2 languages, all scenarios | Mid-size |
+| Enterprise | RM 2,500 (~$575) | Unlimited calls, 3 languages, all scenarios, custom brand voice | Chains |
+
+**Bloom projection (Enterprise tier, 50 outlets):**
+
+| Metric | Value |
+|--------|-------|
+| Monthly revenue | RM 125,000 (~$28,750) |
+| Annual revenue | RM 1,500,000 (~$345,000) |
+| Est. monthly calls | 50,000-100,000 |
+| Est. COGS (at 75K calls × $0.07) | ~$5,250/month |
+| **Gross margin** | **~82%** |
+
+### 5.3 Bloom's ROI
+
+Conservative estimate: treatment recall recovers 5% of overdue patients per month.
+
+- 50 outlets × 200 overdue patients each = 10,000 recall targets
+- 5% recovery = 500 rebooked appointments/month
+- Average rebooking value: RM 400 (blended dental + aesthetics)
+- **Revenue recovered: RM 200,000/month**
+- **Our cost to Bloom: RM 125,000/month**
+- **Net ROI to Bloom: RM 75,000/month profit + intangible patient retention value**
+
+At scale, this pricing is trivially justified.
+
+---
+
+## 6. Execution Plan
+
+### 6.1 Three-Week Sprint
+
+| Week | Deliverable | Files |
+|------|-------------|-------|
+| 1 | 6 English healthcare agent JSONs, tested via `/test` browser route | `agents/*.json` |
+| 1-2 | 6 Malay + 6 Mandarin variants (18 total) | `agents/*_ms.json`, `agents/*_zh.json` |
+| 2 | Brand config system + `get_agent()` brand merging | `agents/brands/*.json`, `main.py` |
+| 2 | STT language param + multilingual TTS + MY phone routing | `stt.py`, `tts.py`, `pipeline.py`, `web_session.py`, `caller.py`, `config.py` |
+| 3 | PDPA compliance module + storage schema + DNC | `compliance.py`, `storage.py`, `caller.py` |
+| 3 | Dashboard updates (brand selector, +60 default, patient variable fields) + end-to-end testing | `static/index.html`, `.env.example` |
+
+**What's explicitly deferred:**
+- Batch calling (CSV upload, concurrent calls, retry logic) — ships after Bloom validates core scenarios
+- WhatsApp Business API integration — Phase 2 product
+- EMR/clinic management system integration — requires Bloom's tech stack assessment
+
+### 6.2 Pilot Structure
+
+| Parameter | Value |
+|-----------|-------|
+| Pilot outlets | 2-3 (1 Cantiq, 1-2 Kheng) |
+| Pilot duration | 4 weeks |
+| Scenarios enabled | Treatment recall + appointment reminder (highest ROI) |
+| Languages | English first, add Malay in week 2 |
+| Success metric | >10% of lapsed patients rebooked via AI call |
+| Kill metric | <3% rebook rate after 4 weeks |
+| Call volume | Est. 500-1,000 calls/week across pilot outlets |
+
+### 6.3 Verification Checklist
+
+1. **Browser test:** Each scenario via `/test` — verify tone, compliance sections, no medical advice leakage
+2. **Brand test:** Calls with different `brand_id` values — verify tone injection and variable merging
+3. **Compliance test:** Opted-out number (blocked), outside 9 AM-9 PM MYT (blocked)
+4. **Trilingual test:** Each language variant with native speaker evaluation
+5. **Live call test:** Real Twilio call to `+60` number — caller ID, audio quality, Malaysian English STT accuracy
+
+---
+
+## 7. Risk Register
+
+| Risk | Probability | Impact | Mitigation |
+|------|------------|--------|------------|
+| **Malaysian English STT accuracy** — Deepgram may struggle with code-switching (Manglish) and local accents | Medium | High | Test extensively during pilot; fall back to Deepgram `multi` (auto-detect) if single-language accuracy is poor; evaluate Whisper as backup |
+| **Single-client concentration** — Bloom is 100% of revenue initially | High | High | By design for first 6 months; begin pipeline development for Q&M Dental and other chains by month 3 |
+| **Bloom's patient data sharing** — Requires trust + data processing agreement | Medium | High | Draft DPA before pilot; minimize data retention (90-day purge); offer on-premise deployment option if needed |
+| **ElevenLabs Malay/Mandarin quality** — Multilingual v2 may produce unnatural prosody | Medium | Medium | Evaluate alternative TTS (Azure Neural, Google Cloud) for non-English; voice quality is testable pre-launch |
+| **Regulatory change** — PDPA amendments or new AI disclosure requirements | Low | Medium | Built compliance as a module, not hardcoded; monitor Malaysian regulatory developments monthly |
+| **Patient backlash to AI calls** — "Why is a robot calling me?" | Medium | Medium | Agent prompts never claim to be human; warm, natural tone; instant opt-out; frame as "calling on behalf of [clinic]" |
+| **Twilio Malaysia reliability** — Call quality and delivery rates for +60 | Low | High | Test call completion rates during pilot; have Vonage/Bandwidth as fallback carriers |
+
+---
+
+## 8. Decision Framework
+
+### 8.1 Why This Pivot, Why Now
+
+| Factor | BPO/UTS Path | Healthcare/Bloom Path |
+|--------|-------------|----------------------|
+| Sales cycle | 12-18 months | Weeks (direct relationship) |
+| Competition | Intense (NICE, Genesys, Retell, Synthflow) | None in SEA |
+| Revenue model | Per-seat SaaS (misaligned with BPO economics) | Per-outcome (aligned with clinic revenue recovery) |
+| Technical lift | Major (copilot, QA scoring, dialer integration) | Minimal (new JSON configs + compliance layer) |
+| Time to revenue | 6-12 months | 4-6 weeks |
+| Defensibility | Low (features, not data moat) | High (local language data, clinic relationships, regulatory know-how) |
+
+### 8.2 What Success Looks Like
+
+| Timeframe | Target |
+|-----------|--------|
+| Week 3 | All 18 agent scenarios built and browser-tested |
+| Week 7 | Pilot live at 2-3 Bloom outlets with measurable rebook rates |
+| Month 3 | Full Bloom rollout (50+ outlets), $25K+ MRR |
+| Month 6 | Second healthcare chain signed, $50K+ MRR |
+| Month 12 | WhatsApp channel live, 5+ clients, $150K+ MRR |
+
+### 8.3 Kill Conditions
+
+Abandon this direction if any of the following hold true after the pilot:
+- Rebook rate from AI calls < 3% after tuning
+- Bloom declines to expand past pilot outlets after 4 weeks
+- STT accuracy for Malaysian English is fundamentally insufficient (<80% word accuracy) and no alternative STT fixes it
+- PDPA or BNM regulatory guidance explicitly prohibits AI-initiated patient outreach
+
+### 8.4 What We're NOT Doing
+
+- **Not pursuing BPO/UTS.** Valuable market intelligence, wrong entry point for us.
+- **Not building a generic voice AI platform.** Synthflow, Retell, and Vapi own that layer. We're vertical.
+- **Not competing in the US.** Red ocean for patient recall; HIPAA compliance is a 6-month project alone.
+- **Not replacing clinic staff.** AI handles the dial-out and initial conversation; human staff handles scheduling, medical questions, and complex interactions.
+
+---
+
+## Appendix A: BPO Competitive Landscape (Condensed)
+
+This analysis was conducted evaluating UTS (Malaysia, 1,225 agents, RM 93M revenue) as a potential client. Retained here for market context.
+
+### AI Voice Agent Startups
+
+**Retell AI** — Most capital-efficient ($5.1M raised, $7.2M revenue). ~600ms latency, OpenAI showcase partner. 10M+ min/month. SOC 2 Type II + HIPAA. $0.05-0.14/min.
+
+**Synthflow** — Leading no-code platform ($30M Series A, Accel). 4.9/5 G2 across 999 reviews. 200+ integrations, white-label agency program. $0.08-0.19/min.
+
+**Vapi** — "Twilio for AI agents" (~$28M funding, $8M ARR). Maximum configurability, requires deep engineering. $0.13-0.25/min.
+
+**Bland AI** — Enterprise API ($65M Series B). Sub-1s latency claims but poor support reviews. $0.12-0.14/min.
+
+### Enterprise CCaaS
+
+**NICE CXone** — 22.2% market share, Gartner MQ Leader. Acquired Cognigy for $955M (Sep 2025). $2.2B+ cloud revenue.
+
+**Genesys Cloud** — 19.7% share, $2.4B ARR growing 33% YoY. Pioneered Large Action Model for agentic AI (Feb 2026). Backed by Salesforce + ServiceNow.
+
+**Amazon Connect** — Pure pay-per-use at $0.018/min. No seat licenses. 16M+ daily interactions. Three consecutive years as Gartner MQ Leader.
+
+### Outbound Dialers
+
+**Orum** — $250/user/month, AI trained on 1B+ sales calls, 4x connect rates. Proven BPO adoption.
+
+**Nooks** — $5,000/user/year, best UI, up to 10 parallel lines. B2B SaaS focused.
+
+### QA / Analytics
+
+**Observe.AI** — Contact-center-specific LLM, 95%+ adoption across 350+ enterprise deployments. Scores 100% of calls vs. traditional 2-5% manual sample.
+
+**CallMiner** — Forrester Wave Leader, 20+ years of conversational data. Enterprise pricing.
+
+### Key Market Data Points
+
+- AI contact center market: $2.5B (2024) → $7-13B by 2030-2034, 18-24% CAGR
+- Voice AI agents specifically: projected $47.5B by 2034, 34.8% CAGR
+- Only 34% of contact centers migrated to cloud — massive runway remains
+- 95% of customer service leaders plan to retain human agents
+- Industry reality check in 2025: marketed 70-80% efficiency gains, actual results ~25%
+
+---
+
+## Appendix B: UTS Strategic Context
+
+**Company:** United Tele Service (HK: 6113), ~$20M revenue, 1,225 employees, 9 contact centers in KL.
+
+**Business:** Outbound telemarketing for Malaysian banks and insurers — insurance, credit cards, loans, takaful.
+
+**AI maturity:** Zero. Manual scripts, manual QA (2-5% sample), no digital channels.
+
+**Recent signal:** Acquired by Microhash International (Singapore). Renamed holding company to "BitStrat Holdings" (June 2025) — signals tech-forward transformation.
+
+**Why we passed:** Long enterprise sales cycle, BPO economics misaligned with AI pricing, crowded competitive field, regulatory complexity of financial product telemarketing (PIAM/LIAM/BNM). The engagement was valuable for market intelligence but the wrong entry vector for a startup moving fast.

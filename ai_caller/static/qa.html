@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rivorix QA — Auto Scorecard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #08090c; --bg2: #0d0f14; --surface: #12151c; --surface2: #181c26;
+  --surface3: #232836; --border: #252a38; --border-l: #313748;
+  --text: #f4f5f8; --text2: #a0a5b8; --text3: #5c6278;
+  --accent: #7c6aff; --accent2: #9b8fff;
+  --green: #22c55e; --amber: #f59e0b; --red: #ef4444; --blue: #3b82f6;
+  --radius: 10px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+.topbar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 24px; background:var(--bg2); border-bottom:1px solid var(--border);
+}
+.logo { font-weight:800; font-size:17px; letter-spacing:-0.3px; }
+.logo span { color:var(--accent2); }
+.tabs { display:flex; gap:4px; }
+.tab {
+  padding:8px 16px; border-radius:8px; cursor:pointer;
+  font-size:13px; font-weight:500; color:var(--text2);
+  transition:all 0.15s; background:transparent; border:none;
+}
+.tab:hover { color:var(--text); background:var(--surface); }
+.tab.active { color:var(--text); background:var(--surface2); }
+
+.container { max-width:1400px; margin:0 auto; padding:28px 24px; }
+
+.view { display:none; }
+.view.active { display:block; }
+
+h1 { font-size:22px; font-weight:700; margin-bottom:4px; letter-spacing:-0.3px; }
+.subtitle { color:var(--text2); font-size:13px; margin-bottom:24px; }
+
+/* Score hero */
+.score-hero {
+  display:grid; grid-template-columns: 1fr 2fr; gap:24px; margin-bottom:24px;
+}
+.score-card-big {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:24px; display:flex; flex-direction:column; justify-content:space-between;
+}
+.score-circle {
+  width:120px; height:120px; border-radius:50%;
+  background:conic-gradient(var(--score-color, var(--accent)) var(--score-pct,0%), var(--surface3) 0);
+  display:flex; align-items:center; justify-content:center; margin:0 auto 16px;
+  position:relative;
+}
+.score-circle::before {
+  content:''; position:absolute; inset:8px; border-radius:50%; background:var(--surface);
+}
+.score-circle-val {
+  position:relative; z-index:1; font-size:28px; font-weight:800;
+  font-family:'JetBrains Mono',monospace;
+}
+.score-card-big .label {
+  font-size:11px; text-transform:uppercase; letter-spacing:1.2px;
+  color:var(--text3); text-align:center; font-weight:700;
+}
+
+.meta-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; }
+.meta-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px;
+}
+.meta-label { font-size:10px; text-transform:uppercase; letter-spacing:1.2px; color:var(--text3); font-weight:700; margin-bottom:6px; }
+.meta-val { font-size:20px; font-weight:700; letter-spacing:-0.3px; }
+.meta-val.mono { font-family:'JetBrains Mono',monospace; font-size:18px; }
+.badge {
+  display:inline-block; padding:3px 8px; border-radius:4px;
+  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px;
+}
+.badge.converted { background:rgba(34,197,94,0.15); color:var(--green); }
+.badge.qualified { background:rgba(59,130,246,0.15); color:var(--blue); }
+.badge.declined { background:rgba(107,114,128,0.2); color:var(--text2); }
+.badge.callback { background:rgba(245,158,11,0.15); color:var(--amber); }
+.badge.voicemail { background:rgba(107,114,128,0.15); color:var(--text3); }
+.badge.wrong_number { background:rgba(107,114,128,0.15); color:var(--text3); }
+.badge.other { background:rgba(107,114,128,0.15); color:var(--text3); }
+
+/* Section cards */
+.sections { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+.section {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:20px;
+}
+.section h3 {
+  font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px;
+  color:var(--text2); margin-bottom:14px;
+}
+.section-score {
+  font-size:32px; font-weight:800; letter-spacing:-0.5px;
+  font-family:'JetBrains Mono',monospace; margin-bottom:16px;
+}
+.section-score.good { color:var(--green); }
+.section-score.ok { color:var(--amber); }
+.section-score.bad { color:var(--red); }
+
+/* Beat list (script adherence) */
+.beat { display:flex; align-items:flex-start; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
+.beat:last-child { border:none; }
+.beat-check {
+  flex-shrink:0; width:16px; height:16px; border-radius:4px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:10px; font-weight:800; margin-top:2px;
+}
+.beat-check.full { background:var(--green); color:#000; }
+.beat-check.partial { background:var(--amber); color:#000; }
+.beat-check.missed { background:var(--red); color:#fff; }
+.beat-body { flex:1; }
+.beat-title { font-size:13px; font-weight:500; margin-bottom:2px; }
+.beat-evidence { font-size:11px; color:var(--text3); font-style:italic; font-family:'JetBrains Mono',monospace; }
+
+/* Compliance flags */
+.flag { display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+.flag:last-child { border:none; }
+.flag-status {
+  flex-shrink:0; width:16px; height:16px; border-radius:4px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:10px; font-weight:800; margin-top:2px;
+}
+.flag-status.satisfied { background:var(--green); color:#000; }
+.flag-status.fired { background:var(--red); color:#fff; }
+.flag-status.pending { background:var(--surface3); color:var(--text3); }
+.flag-body { flex:1; }
+.flag-title { font-size:13px; font-weight:500; }
+.flag-evidence { font-size:11px; color:var(--text3); font-family:'JetBrains Mono',monospace; margin-top:2px; }
+
+/* Sentiment curve */
+.sent-curve { height:80px; display:flex; align-items:flex-end; gap:4px; padding:12px 0; }
+.sent-bar {
+  flex:1; min-width:8px; border-radius:3px 3px 0 0;
+  background:var(--blue); transition:all 0.2s;
+}
+
+/* Coaching list */
+.coach-list { list-style:none; }
+.coach-list li {
+  padding:10px 12px; background:var(--surface2); border-radius:8px;
+  margin-bottom:8px; font-size:13px; line-height:1.5; color:var(--text);
+  border-left:2px solid var(--accent);
+}
+
+/* Fleet dashboard */
+.fleet-stats { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:20px; }
+.fleet-stat {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:18px 20px;
+}
+.fleet-stat-val { font-size:32px; font-weight:800; letter-spacing:-0.5px; font-family:'JetBrains Mono',monospace; }
+.fleet-stat-label { font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:var(--text3); font-weight:700; margin-top:4px; }
+.fleet-stat-val.good { color:var(--green); }
+.fleet-stat-val.ok { color:var(--amber); }
+.fleet-stat-val.bad { color:var(--red); }
+
+.fleet-grid { display:grid; grid-template-columns:2fr 2fr; gap:16px; }
+.table { width:100%; border-collapse:collapse; font-size:13px; }
+.table th { text-align:left; padding:10px 12px; font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text3); font-weight:700; border-bottom:1px solid var(--border); }
+.table td { padding:10px 12px; border-bottom:1px solid var(--border); }
+.table tr:hover td { background:var(--surface2); }
+.score-cell { font-family:'JetBrains Mono',monospace; font-weight:600; }
+.score-cell.good { color:var(--green); }
+.score-cell.ok { color:var(--amber); }
+.score-cell.bad { color:var(--red); }
+
+.outcome-bars { display:flex; flex-direction:column; gap:6px; }
+.outcome-bar-row { display:flex; align-items:center; gap:10px; font-size:12px; }
+.outcome-bar-label { min-width:90px; color:var(--text2); font-size:11px; text-transform:uppercase; letter-spacing:0.8px; }
+.outcome-bar-track { flex:1; height:18px; background:var(--surface2); border-radius:4px; position:relative; overflow:hidden; }
+.outcome-bar-fill { height:100%; border-radius:4px; background:var(--accent); transition:width 0.3s; }
+.outcome-bar-count { min-width:40px; text-align:right; font-family:'JetBrains Mono',monospace; font-weight:600; }
+
+.empty { padding:40px; text-align:center; color:var(--text3); font-size:13px; }
+
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-thumb { background:var(--border-l); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">Rivorix<span>·</span>QA</div>
+  <div class="tabs">
+    <button class="tab active" data-view="single">Single Call</button>
+    <button class="tab" data-view="fleet">Fleet Dashboard</button>
+  </div>
+  <div></div>
+</div>
+
+<div class="container">
+
+  <!-- SINGLE CALL VIEW -->
+  <div class="view active" id="view-single">
+    <h1 id="singleTitle">Call Scorecard</h1>
+    <div class="subtitle" id="singleSub">Load a call by ?call_id=… or select from fleet</div>
+
+    <div id="singleContent"></div>
+  </div>
+
+  <!-- FLEET VIEW -->
+  <div class="view" id="view-fleet">
+    <h1>Fleet Dashboard</h1>
+    <div class="subtitle">UTS-Sample-Campaign-2026-04 · auto-QA run on every call</div>
+
+    <div class="fleet-stats" id="fleetStats"></div>
+    <div class="fleet-grid">
+      <div class="section">
+        <h3>Agents Ranked by Performance</h3>
+        <table class="table" id="agentTable"><thead>
+          <tr><th>Agent</th><th>Calls</th><th>Avg Score</th></tr>
+        </thead><tbody></tbody></table>
+      </div>
+      <div class="section">
+        <h3>Outcome Distribution</h3>
+        <div class="outcome-bars" id="outcomeBars"></div>
+      </div>
+      <div class="section">
+        <h3>Top Compliance Violations</h3>
+        <table class="table" id="violationTable"><thead>
+          <tr><th>Rule</th><th>Count</th></tr>
+        </thead><tbody></tbody></table>
+      </div>
+      <div class="section">
+        <h3>Recent Calls</h3>
+        <table class="table" id="callTable"><thead>
+          <tr><th>Agent</th><th>Outcome</th><th>Score</th><th>View</th></tr>
+        </thead><tbody></tbody></table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const api = { get: u => fetch(u).then(r => r.json()) };
+
+const initialCallId = new URLSearchParams(location.search).get('call_id');
+if (initialCallId) {
+  loadSingle(initialCallId);
+} else {
+  document.getElementById('singleContent').innerHTML =
+    '<div class="empty">Pass ?call_id=… in the URL to view a single call, or switch to the Fleet Dashboard.</div>';
+}
+
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + t.dataset.view).classList.add('active');
+  if (t.dataset.view === 'fleet') loadFleet();
+}));
+
+// ─── Single-call view ───
+
+async function loadSingle(callId) {
+  const call = await api.get(`/api/calls/${callId}`);
+  if (!call) return;
+
+  let summary = null;
+  if (call.summary) {
+    try { summary = JSON.parse(call.summary); } catch (e) {}
+  }
+  if (!summary) {
+    // Score on-demand
+    document.getElementById('singleSub').textContent = 'Generating scorecard…';
+    const resp = await api.get(`/api/qa/${callId}`);
+    summary = resp;
+  }
+
+  renderSingle(call, summary);
+}
+
+function renderSingle(call, s) {
+  document.getElementById('singleTitle').textContent =
+    `${call.agent_name || 'Agent'} → ${call.to_number || ''}`;
+  document.getElementById('singleSub').innerHTML =
+    `<span class="badge ${s.outcome || 'other'}">${s.outcome || 'other'}</span> · ${call.duration_seconds?.toFixed(0) || 0}s · ${s.word_count || 0} words · generated in ${s.generation_ms || 0}ms`;
+
+  const overall = s.overall_score || 0;
+  const color = overall >= 75 ? 'var(--green)' : overall >= 50 ? 'var(--amber)' : 'var(--red)';
+  const overallClass = overall >= 75 ? 'good' : overall >= 50 ? 'ok' : 'bad';
+
+  const scriptScore = (s.script_adherence?.score) || 0;
+  const complianceScore = (s.compliance?.score) || 0;
+  const sentimentScore = (s.sentiment?.score) || 0;
+
+  const content = `
+    <div class="score-hero">
+      <div class="score-card-big">
+        <div class="score-circle" style="--score-pct:${overall}%; --score-color:${color}">
+          <div class="score-circle-val" style="color:${color}">${overall.toFixed(0)}</div>
+        </div>
+        <div class="label">Overall Score</div>
+      </div>
+      <div class="meta-grid">
+        <div class="meta-card">
+          <div class="meta-label">Script Adherence</div>
+          <div class="meta-val mono ${overallClass}">${scriptScore.toFixed(0)}</div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Compliance</div>
+          <div class="meta-val mono ${overallClass}">${complianceScore.toFixed(0)}</div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Customer Sentiment</div>
+          <div class="meta-val mono ${overallClass}">${sentimentScore.toFixed(0)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sections">
+      <div class="section">
+        <h3>Script Adherence — ${scriptScore.toFixed(0)}/100</h3>
+        ${renderBeats(s.script_adherence)}
+      </div>
+      <div class="section">
+        <h3>Compliance — ${complianceScore.toFixed(0)}/100</h3>
+        ${renderFlags(s.compliance)}
+      </div>
+    </div>
+
+    <div class="sections">
+      <div class="section">
+        <h3>Sentiment Curve</h3>
+        ${renderSentiment(s.sentiment)}
+      </div>
+      <div class="section">
+        <h3>Coaching Recommendations</h3>
+        ${renderCoaching(s.coaching_recommendations)}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('singleContent').innerHTML = content;
+}
+
+function renderBeats(script) {
+  const beats = script?.details?.beats || {};
+  if (!Object.keys(beats).length) return '<div class="empty">No beat data</div>';
+
+  return Object.entries(beats).map(([k, v]) => {
+    const score = v.score;
+    const klass = score === 1 ? 'full' : score >= 0.5 ? 'partial' : 'missed';
+    const icon = score === 1 ? '✓' : score >= 0.5 ? '·' : '✗';
+    return `
+      <div class="beat">
+        <div class="beat-check ${klass}">${icon}</div>
+        <div class="beat-body">
+          <div class="beat-title">${esc(k.replace(/_/g, ' '))}</div>
+          <div class="beat-evidence">${esc(v.evidence || '')}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderFlags(compliance) {
+  const flags = compliance?.details?.flags || [];
+  if (!flags.length) return '<div class="empty">No compliance pack configured</div>';
+  return flags.map(f => {
+    const icon = f.status === 'satisfied' ? '✓' : f.status === 'fired' ? '!' : '?';
+    return `
+      <div class="flag">
+        <div class="flag-status ${f.status}">${icon}</div>
+        <div class="flag-body">
+          <div class="flag-title">${esc(f.title)}</div>
+          ${f.evidence ? `<div class="flag-evidence">${esc(f.evidence).slice(0, 180)}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderSentiment(sentiment) {
+  const curve = sentiment?.details?.curve || [];
+  if (!curve.length) return '<div class="empty">No sentiment data</div>';
+  const bars = curve.map(v => {
+    const height = ((v + 1) / 2) * 100; // -1..+1 → 0..100%
+    const color = v > 0.2 ? 'var(--green)' : v < -0.2 ? 'var(--red)' : 'var(--amber)';
+    return `<div class="sent-bar" style="height:${Math.max(8, height)}%; background:${color}" title="${v.toFixed(2)}"></div>`;
+  }).join('');
+  return `
+    <div class="sent-curve">${bars}</div>
+    <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text3); font-family:'JetBrains Mono',monospace; margin-top:8px;">
+      <span>avg ${sentiment.details.avg?.toFixed(2)}</span>
+      <span>final ${sentiment.details.final?.toFixed(2)}</span>
+    </div>
+  `;
+}
+
+function renderCoaching(recs) {
+  if (!recs || !recs.length) return '<div class="empty">No coaching recommendations</div>';
+  return `<ul class="coach-list">${recs.map(r => `<li>${esc(r)}</li>`).join('')}</ul>`;
+}
+
+// ─── Fleet view ───
+
+async function loadFleet() {
+  const data = await api.get('/api/qa/fleet');
+  renderFleet(data);
+}
+
+function renderFleet(data) {
+  const stats = data.stats || {};
+  const scorecards = data.scorecards || [];
+
+  const overallClass = (v) => v >= 75 ? 'good' : v >= 50 ? 'ok' : 'bad';
+
+  document.getElementById('fleetStats').innerHTML = `
+    <div class="fleet-stat">
+      <div class="fleet-stat-val">${stats.count || 0}</div>
+      <div class="fleet-stat-label">Calls Scored</div>
+    </div>
+    <div class="fleet-stat">
+      <div class="fleet-stat-val ${overallClass(stats.avg_overall || 0)}">${(stats.avg_overall || 0).toFixed(0)}</div>
+      <div class="fleet-stat-label">Avg Overall</div>
+    </div>
+    <div class="fleet-stat">
+      <div class="fleet-stat-val ${overallClass(stats.avg_compliance || 0)}">${(stats.avg_compliance || 0).toFixed(0)}</div>
+      <div class="fleet-stat-label">Avg Compliance</div>
+    </div>
+    <div class="fleet-stat">
+      <div class="fleet-stat-val bad">${stats.cross_sell_missed || 0}</div>
+      <div class="fleet-stat-label">Cross-sell Missed</div>
+    </div>
+  `;
+
+  // Agent ranking
+  const agentBody = document.querySelector('#agentTable tbody');
+  agentBody.innerHTML = (stats.agent_ranking || []).map(a => `
+    <tr>
+      <td>${esc(a.agent)}</td>
+      <td>${a.calls}</td>
+      <td class="score-cell ${overallClass(a.avg_score)}">${a.avg_score.toFixed(0)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="3" class="empty">No data</td></tr>';
+
+  // Outcome distribution
+  const outcomes = stats.outcomes || {};
+  const total = Object.values(outcomes).reduce((a, b) => a + b, 0) || 1;
+  const colors = {
+    converted: 'var(--green)', qualified: 'var(--blue)',
+    callback: 'var(--amber)', declined: 'var(--text3)',
+    voicemail: 'var(--text3)', wrong_number: 'var(--text3)', other: 'var(--text3)',
+  };
+  document.getElementById('outcomeBars').innerHTML = Object.entries(outcomes)
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `
+      <div class="outcome-bar-row">
+        <div class="outcome-bar-label">${esc(k)}</div>
+        <div class="outcome-bar-track"><div class="outcome-bar-fill" style="width:${(v/total*100)}%; background:${colors[k] || 'var(--accent)'}"></div></div>
+        <div class="outcome-bar-count">${v}</div>
+      </div>
+    `).join('');
+
+  // Top violations
+  const vBody = document.querySelector('#violationTable tbody');
+  vBody.innerHTML = (stats.top_violations || []).map(v => `
+    <tr>
+      <td>${esc(v.rule_id.replace(/_/g, ' '))}</td>
+      <td class="score-cell bad">${v.count}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="2" class="empty">None</td></tr>';
+
+  // Recent calls
+  const cBody = document.querySelector('#callTable tbody');
+  cBody.innerHTML = scorecards.slice(0, 20).map(s => `
+    <tr>
+      <td>${esc(s.synthetic_agent || s.agent_scenario)}</td>
+      <td><span class="badge ${s.outcome}">${s.outcome}</span></td>
+      <td class="score-cell ${overallClass(s.overall_score)}">${s.overall_score.toFixed(0)}</td>
+      <td><a href="?call_id=${s.call_id}" onclick="event.preventDefault(); document.querySelector('.tab[data-view=single]').click(); loadSingle('${s.call_id}');" style="color:var(--accent2); font-size:12px;">view</a></td>
+    </tr>
+  `).join('') || '<tr><td colspan="4" class="empty">No scored calls yet</td></tr>';
+}
+
+function esc(s) { if (s == null) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+</script>
+
+</body>
+</html>

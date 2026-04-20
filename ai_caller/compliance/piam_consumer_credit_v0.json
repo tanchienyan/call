@@ -1,0 +1,134 @@
+{
+  "pack_id": "piam_consumer_credit_v0",
+  "description": "PIAM/BNM consumer credit telemarketing disclosures — v0 for Malaysian credit card outbound. Built from public BNM consumer protection guidelines and PIAM conduct materials. v1 will be co-developed with client compliance team.",
+  "regulator_refs": [
+    "BNM Policy Document on Fair Treatment of Financial Consumers (2019)",
+    "BNM Guidelines on Credit Card (2011, updated)",
+    "PIAM Code of Ethics & Conduct (public summary)"
+  ],
+  "applies_to_scenarios": ["uts_bt_bahasa", "uts_bt_en"],
+  "rules": [
+    {
+      "id": "identity_disclosure",
+      "title": "Agent and company identity disclosure",
+      "requirement": "Within the first 30 seconds of speech, the agent must state their name and the company they are calling on behalf of.",
+      "severity": "mandatory",
+      "detection": {
+        "type": "llm",
+        "prompt": "Did the agent clearly state their name AND the company/institution they represent within their first two turns? Return JSON {\"fired\": true/false, \"evidence\": \"verbatim quote or null\"}"
+      },
+      "fire_on": "missing_after_turn_3",
+      "severity_on_miss": "high"
+    },
+    {
+      "id": "recording_consent",
+      "title": "Call recording consent",
+      "requirement": "Before discussing any product details, the agent must disclose that the call is being recorded and obtain explicit consent (or acknowledgment) from the consumer.",
+      "severity": "mandatory",
+      "detection": {
+        "type": "llm",
+        "prompt": "Did the agent explicitly tell the consumer the call is being recorded AND wait for a response before discussing product details? Return JSON {\"fired\": true/false, \"evidence\": \"verbatim quote or null\"}"
+      },
+      "fire_on": "missing_before_product_discussion",
+      "severity_on_miss": "critical"
+    },
+    {
+      "id": "interest_rate_disclosure",
+      "title": "Effective interest rate disclosure",
+      "requirement": "For credit products, the agent must disclose the effective interest rate (not just promotional rate) when discussing financial terms.",
+      "severity": "mandatory",
+      "detection": {
+        "type": "regex_any",
+        "triggers_product_discussion": ["balance transfer", "interest rate", "promotional rate", "kadar faedah", "faedah"],
+        "must_contain_within_next_3_turns_any": [
+          "effective interest rate",
+          "standard rate of",
+          "after (?:the )?promotional",
+          "reverts? to",
+          "kadar efektif",
+          "selepas tempoh promosi"
+        ]
+      },
+      "fire_on": "triggered_but_not_fulfilled",
+      "severity_on_miss": "critical",
+      "demo_note": "THIS IS THE ORCHESTRATED MISS. Human closer deliberately omits the effective-rate disclosure when discussing the 3.5% promotional rate. Copilot fires this flag in red."
+    },
+    {
+      "id": "pressure_tactics",
+      "title": "No pressure / urgency tactics",
+      "requirement": "The agent must not use artificial urgency (e.g. 'today only', 'limited offer', 'last chance') to push a sale decision.",
+      "severity": "mandatory",
+      "detection": {
+        "type": "regex_any",
+        "triggers_any": [
+          "today only",
+          "last chance",
+          "limited (?:time|offer)",
+          "hari ini sahaja",
+          "tawaran terhad",
+          "peluang terakhir"
+        ]
+      },
+      "fire_on": "trigger_matched",
+      "severity_on_miss": "high"
+    },
+    {
+      "id": "opt_out_handling",
+      "title": "Opt-out acknowledged within 10 seconds",
+      "requirement": "If the consumer states they are not interested or asks to be removed from the call list, the agent must acknowledge and end the pitch within 10 seconds.",
+      "severity": "mandatory",
+      "detection": {
+        "type": "llm",
+        "prompt": "Did the consumer explicitly decline or ask to be removed, and did the agent respect it without continuing to pitch? Return JSON {\"consumer_opted_out\": true/false, \"agent_respected\": true/false, \"evidence\": \"verbatim quote or null\"}"
+      },
+      "fire_on": "opted_out_but_not_respected",
+      "severity_on_miss": "critical"
+    },
+    {
+      "id": "no_false_claims",
+      "title": "No false affiliation or government claims",
+      "requirement": "The agent must not claim to be calling from or on behalf of a government agency, regulator, or an institution they do not represent.",
+      "severity": "mandatory",
+      "detection": {
+        "type": "regex_any",
+        "triggers_any": [
+          "bank negara",
+          "akpk",
+          "ministry of",
+          "kementerian",
+          "from the government",
+          "regulator"
+        ],
+        "context": "agent",
+        "exception_if_accompanied_by": ["authorised by", "diwakili oleh", "not affiliated"]
+      },
+      "fire_on": "trigger_matched_without_exception",
+      "severity_on_miss": "critical"
+    },
+    {
+      "id": "third_party_consent",
+      "title": "Third-party disclosure refusal",
+      "requirement": "If someone other than the account holder answers, the agent must not disclose the reason for the call or any account details.",
+      "severity": "mandatory",
+      "detection": {
+        "type": "llm",
+        "prompt": "If a third party (not the target customer) answered, did the agent refuse to disclose the reason for the call? Return JSON {\"third_party_answered\": true/false, \"agent_leaked\": true/false, \"evidence\": \"verbatim quote or null\"}"
+      },
+      "fire_on": "third_party_and_agent_leaked",
+      "severity_on_miss": "critical"
+    },
+    {
+      "id": "ai_scope_boundary",
+      "title": "AI agent must not close sale",
+      "requirement": "The AI First-Touch agent must only qualify interest and transfer to human. It must not collect signature, confirm application, or state binding terms.",
+      "severity": "mandatory",
+      "detection": {
+        "type": "llm",
+        "prompt": "Did the AI agent stay within scope (qualify + transfer), or did it attempt to close, bind terms, or collect application-level confirmation? Return JSON {\"exceeded_scope\": true/false, \"evidence\": \"verbatim quote or null\"}"
+      },
+      "fire_on": "exceeded_scope",
+      "severity_on_miss": "critical",
+      "audience": "internal_qa_only"
+    }
+  ]
+}

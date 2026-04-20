@@ -5,3 +5,7 @@ __pycache__/
 *.db
 *.sqlite
 .DS_Store
+
+# Demo capture assets — too large / contain presenter audio
+ai_caller/demo_fallbacks/*
+!ai_caller/demo_fallbacks/README.md

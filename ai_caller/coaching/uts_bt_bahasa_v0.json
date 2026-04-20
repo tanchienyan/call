@@ -1,0 +1,108 @@
+{
+  "pack_id": "uts_bt_bahasa_v0",
+  "description": "Coaching cards for UTS credit-card balance-transfer outbound, Bahasa + English triggers. Each card fires when a trigger phrase appears in customer speech. Latency target: <2s from utterance to card.",
+  "cards": [
+    {
+      "id": "objection_price",
+      "title": "Objection: Too expensive / rate too high",
+      "triggers": [
+        "mahal",
+        "too expensive",
+        "high interest",
+        "interest tinggi",
+        "kadar tinggi",
+        "rate tinggi"
+      ],
+      "suggestion": "Reframe the rate vs. their current card. Script: 'Actually Puan, that's exactly why — standard credit card rate around eighteen percent. Balance transfer rate kita tiga point lima sahaja. So Puan save almost fifteen percent setahun.'",
+      "color": "amber"
+    },
+    {
+      "id": "objection_time",
+      "title": "Objection: Busy / not a good time",
+      "triggers": [
+        "busy",
+        "tak ada masa",
+        "tengah sibuk",
+        "not a good time",
+        "tak sempat",
+        "tengah kerja"
+      ],
+      "suggestion": "Don't push. Offer specific callback windows. Script: 'Oh okay Puan, saya faham. Bila convenient untuk saya call balik? Pagi or petang better for you?'",
+      "color": "amber"
+    },
+    {
+      "id": "objection_spouse",
+      "title": "Objection: Need to ask spouse / think about it",
+      "triggers": [
+        "tanya husband",
+        "tanya suami",
+        "tanya isteri",
+        "tanya wife",
+        "fikir dulu",
+        "kena fikir",
+        "think about it",
+        "need to think"
+      ],
+      "suggestion": "Don't pressure. Offer transfer to human closer for detailed Q&A. Script: 'Of course Puan. Saya nak suggest — saya tak close sekarang, tapi transfer kepada colleague yang boleh jelaskan detail. Puan boleh tanya apa-apa. Okay?'",
+      "color": "amber"
+    },
+    {
+      "id": "intent_positive",
+      "title": "Positive intent signal — prepare for transfer",
+      "triggers": [
+        "macam mana",
+        "how does it work",
+        "tell me more",
+        "berapa",
+        "how much",
+        "interested",
+        "okay boleh"
+      ],
+      "suggestion": "Customer is engaged. Initiate warm transfer. Script: 'Great Puan, terima kasih. Saya nak sambungkan kepada colleague saya yang handle application side. One moment ya.'",
+      "color": "green"
+    },
+    {
+      "id": "opt_out_hard",
+      "title": "HARD OPT-OUT — stop pitch immediately",
+      "triggers": [
+        "tak nak",
+        "not interested",
+        "jangan call",
+        "don't call",
+        "remove me",
+        "take me off",
+        "dnc",
+        "do not call"
+      ],
+      "suggestion": "STOP PITCH. Acknowledge, confirm removal, end call. Script: 'Baik Puan, tak apa. Saya akan update system supaya Puan tak terima call lagi. Terima kasih, have a good day.' Log as DNC.",
+      "color": "red"
+    },
+    {
+      "id": "compliance_disclosure_reminder",
+      "title": "REMINDER: Disclose effective interest rate",
+      "triggers": [
+        "balance transfer",
+        "promotional rate",
+        "tiga point lima",
+        "3.5"
+      ],
+      "suggestion": "PIAM requires you to state the effective rate after the promotional period. Add: 'Selepas tempoh promosi dua belas bulan, rate revert ke standard card rate, which is around lapan belas peratus.'",
+      "color": "red",
+      "role_filter": "agent"
+    },
+    {
+      "id": "third_party",
+      "title": "Third-party answered — DO NOT disclose reason",
+      "triggers": [
+        "she's not here",
+        "dia tak ada",
+        "you got the wrong",
+        "wrong number",
+        "silap nombor",
+        "not at home"
+      ],
+      "suggestion": "Do not disclose reason for call. Script: 'Oh okay, tak apa. Boleh tolong sampaikan Puan {{customer_name}} kalau sempat, panggil balik {{callback_number}}? Terima kasih.'",
+      "color": "red"
+    }
+  ]
+}

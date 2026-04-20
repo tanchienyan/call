@@ -15,6 +15,8 @@ from caller import make_outbound_call
 from pipeline import CallSession
 from web_session import WebCallSession
 from tts import list_voices
+import copilot as copilot_mod
+from qa_engine import get_engine as get_qa_engine, fleet_summary
 
 app = FastAPI(title="AI Outbound Caller", version="1.0")
 
@@ -291,6 +293,111 @@ async def create_web_call(req: MakeCallRequest):
     )
     pending_agents[call_id] = agent  # Cache prepared agent for WS handler
     return {"call_id": call_id, "status": "ready", "ws_url": f"/ws/web/{call_id}"}
+
+
+# ─── Copilot (live assist UI) ───
+
+@app.get("/copilot", response_class=HTMLResponse)
+async def copilot_page():
+    page = STATIC_DIR / "copilot.html"
+    return page.read_text() if page.exists() else "<h1>Copilot UI not found</h1>"
+
+
+@app.websocket("/ws/copilot/{call_id}")
+async def copilot_stream(websocket: WebSocket, call_id: str):
+    """Stream Copilot events (transcript, coaching cards, compliance) to a
+    browser UI. The bus is populated by the CallSession/WebCallSession running
+    the actual call. Subscribers receive event history on connect for late-join.
+    """
+    await websocket.accept()
+    bus = copilot_mod.get_or_create_bus(call_id)
+    queue = bus.subscribe()
+    print(f"[WS-COPILOT] Subscribed to call {call_id}")
+
+    try:
+        while True:
+            event = await queue.get()
+            await websocket.send_json(event)
+    except WebSocketDisconnect:
+        print(f"[WS-COPILOT] Disconnected from call {call_id}")
+    except Exception as e:
+        print(f"[WS-COPILOT] Error: {e}")
+    finally:
+        bus.unsubscribe(queue)
+
+
+# ─── QA (scorecard UI + API) ───
+
+@app.get("/qa", response_class=HTMLResponse)
+async def qa_page():
+    page = STATIC_DIR / "qa.html"
+    return page.read_text() if page.exists() else "<h1>QA UI not found</h1>"
+
+
+@app.get("/api/qa/fleet")
+async def qa_fleet(limit: int = 200):
+    """Return aggregated fleet stats + recent scored calls for the dashboard.
+    Reads scorecards from the `summary` column — they're precomputed by
+    synth_data.py or by live Copilot.finalize(). No LLM calls at request time.
+    """
+    calls = storage.list_calls(limit=limit)
+    scorecards = []
+    for c in calls:
+        summary = c.get("summary")
+        if not summary:
+            continue
+        try:
+            sc = json.loads(summary)
+            sc["call_id"] = c["id"]
+            scorecards.append(sc)
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+    stats = fleet_summary(scorecards)
+    return {"stats": stats, "scorecards": scorecards}
+
+
+@app.get("/api/qa/{call_id}")
+async def qa_for_call(call_id: str):
+    """Generate or return scorecard for a single call.
+    If already scored, returns cached. Otherwise runs the QA engine.
+    """
+    call = storage.get_call(call_id)
+    if not call:
+        raise HTTPException(404, "Call not found")
+
+    # Return cached scorecard if present
+    if call.get("summary"):
+        try:
+            return json.loads(call["summary"])
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    # Score on-demand. Pick compliance pack from the agent config.
+    compliance_pack = None
+    try:
+        agent = get_agent(call["agent_scenario"])
+        compliance_pack = agent.get("compliance_pack")
+    except ValueError:
+        pass
+
+    engine = get_qa_engine()
+    scorecard = await engine.score_call(call_id, compliance_pack_id=compliance_pack)
+    return scorecard.to_dict()
+
+
+# ─── Demo launcher ───
+
+@app.get("/demo", response_class=HTMLResponse)
+async def demo_launcher():
+    """Convenience page that creates a new web call with the UTS Bahasa agent,
+    opens the caller UI and the Copilot UI side-by-side, and shows the full
+    scripted flow. Used as the entry point in the April demo.
+    """
+    page = STATIC_DIR / "demo.html"
+    if page.exists():
+        return page.read_text()
+    return "<h1>Demo page not found</h1><p>Expected at static/demo.html</p>"
 
 
 # ─── Health ───

@@ -9,22 +9,35 @@ DEEPGRAM_WS_URL = "wss://api.deepgram.com/v1/listen"
 
 class DeepgramSTT:
     """Manages a real-time Deepgram WebSocket connection for streaming STT."""
-    
-    def __init__(self, on_transcript, on_speech_started=None, sample_rate=8000):
+
+    # Language → Deepgram model mapping.
+    # Nova-3 supports en, es, fr, de, hi, ja, ko, pt, ru, zh, ms, and "multi" for auto-detect.
+    # "multi" is essential for Malaysian code-switching (Malay + English in same utterance).
+    _MODEL_BY_LANG = {
+        "en": "nova-3",
+        "ms": "nova-3",     # Bahasa Malaysia
+        "zh": "nova-3",     # Mandarin
+        "multi": "nova-3",  # Auto-detect / code-switch
+    }
+
+    def __init__(self, on_transcript, on_speech_started=None, sample_rate=8000, language="en"):
         self.on_transcript = on_transcript          # async callback(text, is_final)
         self.on_speech_started = on_speech_started  # async callback() - for barge-in
         self.sample_rate = sample_rate
+        self.language = language                    # "en", "ms", "zh", or "multi" for code-switch
         self.ws = None
         self._receive_task = None
         self._is_speaking = False
-    
+
     async def connect(self, encoding="mulaw"):
         """Open WebSocket connection to Deepgram."""
+        model = self._MODEL_BY_LANG.get(self.language, "nova-3")
         params = (
             f"?encoding={encoding}"
             f"&sample_rate={self.sample_rate}"
             f"&channels=1"
-            f"&model=nova-3"
+            f"&model={model}"
+            f"&language={self.language}"
             f"&punctuate=true"
             f"&endpointing=300"        # 300ms silence = end of speech
             f"&interim_results=true"
@@ -41,7 +54,7 @@ class DeepgramSTT:
             ping_timeout=20,
         )
         self._receive_task = asyncio.create_task(self._receive_loop())
-        print(f"[STT] Connected to Deepgram ({encoding} {self.sample_rate}Hz)")
+        print(f"[STT] Connected to Deepgram ({encoding} {self.sample_rate}Hz, lang={self.language}, model={model})")
 
     async def connect_raw(self):
         """Connect with linear16 PCM encoding (for browser audio)."""

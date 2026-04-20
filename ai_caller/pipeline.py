@@ -9,6 +9,7 @@ from tts import stream_tts
 from llm import stream_chat
 from audio_utils import encode_twilio_audio, decode_twilio_audio
 import storage
+import copilot as copilot_mod
 
 
 class CallSession:
@@ -28,11 +29,21 @@ class CallSession:
         self.current_llm_task = None       # Active LLM generation task
         self.user_text_buffer = ""         # Accumulates interim STT results
         
-        # STT
+        # STT — language from agent config, defaults to English.
+        # Use "multi" for code-switched agents (Malay+English in same call).
+        self.language = agent_config.get("language", "en")
         self.stt = DeepgramSTT(
             on_transcript=self._on_stt_transcript,
             on_speech_started=self._on_speech_started,
             sample_rate=8000,
+            language=self.language,
+        )
+
+        # Copilot attachment for phone calls too (same bus design)
+        self.copilot = copilot_mod.attach_copilot(
+            call_id,
+            coaching_pack_id=agent_config.get("coaching_rules"),
+            compliance_pack_id=agent_config.get("compliance_pack"),
         )
         
         # Timing
@@ -85,6 +96,7 @@ class CallSession:
             # Record transcript
             self.transcript.append({"role": "user", "text": text})
             storage.append_transcript(self.call_id, "user", text)
+            self.copilot.on_turn("user", text)
             
             # Add to conversation and generate response
             self.messages.append({"role": "user", "content": text})
@@ -144,6 +156,7 @@ class CallSession:
             self.transcript.append({"role": "agent", "text": full_response})
             storage.append_transcript(self.call_id, "agent", full_response)
             self.messages.append({"role": "assistant", "content": full_response})
+            self.copilot.on_turn("agent", full_response)
     
     async def _speak(self, text: str, record_as: str = None):
         """Convert text to speech and send audio to Twilio."""
@@ -171,8 +184,10 @@ class CallSession:
                     pass
         
         try:
+            vs = self.agent_config.get("voice_settings", {})
             self.current_tts_task = asyncio.create_task(
-                stream_tts(text, voice_id, on_audio_chunk)
+                stream_tts(text, voice_id, on_audio_chunk,
+                           voice_settings=vs, language=self.language)
             )
             await self.current_tts_task
         except asyncio.CancelledError:
@@ -224,3 +239,9 @@ class CallSession:
             ended_at=datetime.utcnow().isoformat(),
         )
         print(f"[CALL {self.call_id}] Ended. Duration: {duration:.0f}s")
+
+        # Deferred compliance audit (LLM-based rules) — don't block teardown
+        try:
+            asyncio.create_task(self.copilot.finalize())
+        except Exception as e:
+            print(f"[CALL {self.call_id}] Copilot finalize error: {e}")

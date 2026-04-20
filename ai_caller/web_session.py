@@ -12,6 +12,8 @@ from llm import stream_chat
 from phone_fx import phone_effect
 from smart_turn import TurnDetector
 import storage
+import copilot as copilot_mod
+import transfer
 
 
 class WebCallSession:
@@ -32,6 +34,10 @@ class WebCallSession:
         self._interrupted_context = False
         self._chars_actually_played = 0
         self.chars_spoken = 0  # Track ElevenLabs character usage
+        # After a warm-transfer signal the AI exits the conversation. We keep
+        # STT + Copilot running so transcripts, coaching, and compliance still
+        # track what the human closer is saying, but no further LLM/TTS runs.
+        self.transferred = False
 
         self.phone_fx = agent_config.get("phone_fx", True)  # Default ON
         self.phone_fx_settings = agent_config.get("phone_fx_settings", {
@@ -41,11 +47,23 @@ class WebCallSession:
         print(f"[WEB {call_id}] phone_fx={self.phone_fx} settings={self.phone_fx_settings}", flush=True)
         
         self.turn_detector = TurnDetector()
-        
+
+        # Language from agent config: "en" | "ms" | "zh" | "multi" (code-switching)
+        self.language = agent_config.get("language", "en")
+
+        # Attach Copilot if the agent specifies coaching/compliance packs.
+        # Copilot runs alongside the call, publishing events to a per-call bus.
+        self.copilot = copilot_mod.attach_copilot(
+            call_id,
+            coaching_pack_id=agent_config.get("coaching_rules"),
+            compliance_pack_id=agent_config.get("compliance_pack"),
+        )
+
         self.stt = DeepgramSTT(
             on_transcript=self._on_stt_transcript,
             on_speech_started=self._on_speech_started,
             sample_rate=16000,  # Browser sends 16kHz
+            language=self.language,
         )
         self.started_at = None
 
@@ -65,7 +83,22 @@ class WebCallSession:
         storage.update_call(self.call_id, status="connected",
                            started_at=self.started_at.isoformat())
 
-        # Generate opening line via LLM (so it varies each time)
+        # For non-English agents we use the scripted first_message directly.
+        # LLM-generated openings in Bahasa/Mandarin tend to drift register or
+        # mix languages — for demo credibility the opening must be exact.
+        first_msg = self.agent_config.get("first_message", "")
+        if self.language != "en" and first_msg:
+            try:
+                self.messages.append({"role": "assistant", "content": first_msg})
+                await self._speak(first_msg, record_as="agent")
+                self.copilot.on_turn("agent", first_msg)
+                print(f"[WEB {self.call_id}] Scripted opening ({self.language}): {first_msg}", flush=True)
+            except Exception as e:
+                print(f"[WEB {self.call_id}] Opening failed: {e}", flush=True)
+                import traceback; traceback.print_exc()
+            return
+
+        # English agents: LLM-generated opening (varies each time)
         try:
             self.messages.append({
                 "role": "user",
@@ -77,8 +110,7 @@ class WebCallSession:
                 opening += chunk
             await stream_chat(self.messages, collect_opening)
             if opening:
-                # Replace the fake user message with the actual opening flow
-                self.messages.pop()  # Remove the instruction
+                self.messages.pop()
                 self.messages.append({"role": "assistant", "content": opening})
                 await self._speak(opening, record_as="agent")
                 print(f"[WEB {self.call_id}] Opening: {opening}", flush=True)
@@ -138,6 +170,13 @@ class WebCallSession:
             self.messages.append({"role": "user", "content": text})
 
             await self._send_json({"type": "transcript", "role": "user", "text": text})
+            # Publish to Copilot bus (coaching + compliance)
+            self.copilot.on_turn("user", text)
+            # After warm transfer the AI has stepped out. Still capture the
+            # transcript above so the human closer's utterances feed Copilot
+            # + QA, but do NOT generate an AI response over them.
+            if self.transferred:
+                return
             asyncio.create_task(self._generate_response())
         elif text:
             await self._send_json({"type": "interim", "text": text})
@@ -238,11 +277,25 @@ class WebCallSession:
         await speaker_task
 
         if full_response:
-            print(f"[WEB {self.call_id}] Agent: {full_response}")
-            self.transcript.append({"role": "agent", "text": full_response})
-            storage.append_transcript(self.call_id, "agent", full_response)
-            self.messages.append({"role": "assistant", "content": full_response})
-            await self._send_json({"type": "transcript", "role": "agent", "text": full_response})
+            # Check for warm-transfer marker in the AI response
+            should_transfer, cleaned_response = transfer.extract_transfer_signal(full_response)
+
+            final_text = cleaned_response if should_transfer else full_response
+            print(f"[WEB {self.call_id}] Agent: {final_text}")
+            self.transcript.append({"role": "agent", "text": final_text})
+            storage.append_transcript(self.call_id, "agent", final_text)
+            self.messages.append({"role": "assistant", "content": final_text})
+            await self._send_json({"type": "transcript", "role": "agent", "text": final_text})
+            self.copilot.on_turn("agent", final_text)
+
+            if should_transfer:
+                print(f"[WEB {self.call_id}] ⚡ Warm-transfer signal received — handing off to human closer")
+                self.transferred = True
+                transfer.publish_transfer_event(self.call_id)
+                await self._send_json({
+                    "type": "transfer_initiated",
+                    "message": "Warm-transferring to human closer. The AI has exited; the human is now on the line.",
+                })
 
     async def _speak(self, text: str, record_as: str = None):
         if not text.strip():
@@ -273,7 +326,8 @@ class WebCallSession:
             vs = self.agent_config.get("voice_settings", {})
             self.current_tts_task = asyncio.create_task(
                 stream_tts(text, voice_id, on_audio_chunk,
-                           output_format="pcm_24000", voice_settings=vs)
+                           output_format="pcm_24000", voice_settings=vs,
+                           language=self.language)
             )
             await self.current_tts_task
         except asyncio.CancelledError:
@@ -326,3 +380,10 @@ class WebCallSession:
                            ended_at=datetime.utcnow().isoformat(),
                            cost_estimate_cents=round(self.chars_spoken * 0.03, 2))
         print(f"[WEB {self.call_id}] Ended. Duration: {duration:.0f}s")
+
+        # Run final compliance audit (LLM-based rules) asynchronously so the
+        # QA scorecard has complete data. Don't block the call teardown on it.
+        try:
+            asyncio.create_task(self.copilot.finalize())
+        except Exception as e:
+            print(f"[WEB {self.call_id}] Copilot finalize error: {e}")

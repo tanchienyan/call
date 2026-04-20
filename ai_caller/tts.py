@@ -23,15 +23,30 @@ def _get_pool() -> httpx.AsyncClient:
 async def stream_tts(text: str, voice_id: str, on_audio_chunk, **kwargs):
     """Stream TTS audio from ElevenLabs with pre-warmed connection pool.
     Calls on_audio_chunk(pcm_bytes) for each audio chunk.
+
+    If `language` kwarg is non-English ("ms", "zh", etc.), automatically uses
+    `eleven_multilingual_v2` which is trained on 29 languages including Malay
+    and Mandarin. Flash v2.5 is English-optimized and produces unnatural prosody
+    on non-English text.
     """
     headers = {
         "xi-api-key": config.ELEVENLABS_API_KEY,
         "Content-Type": "application/json",
     }
     custom = kwargs.get("voice_settings", {})
+    language = kwargs.get("language", "en")
+
+    # Auto-select model by language unless explicitly overridden in voice_settings
+    if "model_id" in custom:
+        model_id = custom["model_id"]
+    elif language in ("ms", "zh", "multi"):
+        model_id = "eleven_multilingual_v2"
+    else:
+        model_id = "eleven_flash_v2_5"
+
     payload = {
         "text": text,
-        "model_id": custom.get("model_id", "eleven_flash_v2_5"),
+        "model_id": model_id,
         "voice_settings": {
             "stability": custom.get("stability", 0.12),
             "similarity_boost": custom.get("similarity_boost", 0.55),

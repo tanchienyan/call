@@ -343,6 +343,16 @@ async function startCall() {
   document.getElementById('emptyTranscript')?.remove();
   document.getElementById('speakingLabel').textContent = '';
 
+  // If a call_id was passed in the URL (e.g. from the demo launcher), skip
+  // creating a new call and connect directly. This lets demo.html orchestrate
+  // both the caller tab and the Copilot tab against the same call.
+  const urlCallId = new URLSearchParams(location.search).get('call_id');
+  if (urlCallId) {
+    callId = urlCallId;
+    await _attachMedia();
+    return;
+  }
+
   const scenario = document.getElementById('scenario').value;
   const extraKey = scenario === 'appointment_confirm' ? 'appointment_date' :
                    scenario === 'membership_renewal' ? 'expiry_date' :
@@ -378,7 +388,13 @@ async function startCall() {
   }).then(r=>r.json());
 
   callId = res.call_id;
+  await _attachMedia();
+}
 
+// Shared media + WebSocket attachment — used both when this page creates
+// its own call and when it resumes a call_id passed via URL.
+async function _attachMedia() {
+  const btn = document.getElementById('micBtn');
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({
       audio: { sampleRate:16000, channelCount:1, echoCancellation:true, noiseSuppression:true, autoGainControl:true }
