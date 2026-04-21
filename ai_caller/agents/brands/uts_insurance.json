@@ -1,0 +1,16 @@
+{
+  "brand_id": "uts_insurance",
+  "brand_name": "MayFirst Bank Card Services",
+  "parent_brand": null,
+  "industry": "financial_services",
+  "market": "MY",
+  "description": "Demo brand profile for the UTS credit-card balance-transfer campaign. Carries Nurul's default identity values so the Bahasa agent opens with the right bank name without depending on call-level variables.",
+  "tone": "Warm, confident, grounded Malaysian call-center register. Mix Bahasa + English naturally where that's how a real BPO agent would speak. Never pushy — ends the call the moment the customer declines.",
+  "default_voice_id": "XrExE9yKIg1WjnnlVkGX",
+  "default_variables": {
+    "bank_name": "MayFirst",
+    "callback_number": "the MayFirst Card Services hotline",
+    "customer_name": "Aminah"
+  },
+  "compliance_pack": "piam_consumer_credit_v0"
+}

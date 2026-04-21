@@ -5,14 +5,18 @@ import config
 import storage
 
 
-def make_outbound_call(to_number: str, agent_config: dict) -> dict:
+def make_outbound_call(to_number: str, agent_config: dict,
+                       brand_id: str | None = None) -> dict:
     """Initiate an outbound phone call via Twilio.
-    
+
     Twilio will connect to our WebSocket when the call is answered.
     Returns call info dict.
+
+    `brand_id` is persisted as a label column so fleet queries + corpus
+    exports can filter by tenant without parsing the agent_config blob.
     """
     call_id = f"call_{uuid.uuid4().hex[:12]}"
-    
+
     # Create call record in DB
     storage.create_call(
         call_id=call_id,
@@ -21,6 +25,9 @@ def make_outbound_call(to_number: str, agent_config: dict) -> dict:
         agent_name=agent_config.get("name", "AI Agent"),
         agent_scenario=agent_config.get("scenario", "custom"),
         voice_id=agent_config.get("voice_id", ""),
+        brand_id=brand_id or agent_config.get("brand_id"),
+        channel="voice",
+        language=agent_config.get("language", "en"),
     )
     
     # Build TwiML that connects to our WebSocket

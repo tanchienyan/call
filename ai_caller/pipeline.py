@@ -238,6 +238,14 @@ class CallSession:
             transcript=self.transcript,
             ended_at=datetime.utcnow().isoformat(),
         )
+        # Populate corpus label columns — see developmentplan.md §4.1.
+        # Imported lazily to avoid a circular import at module load time.
+        from web_session import _detect_recording_consent
+        storage.set_labels(
+            self.call_id,
+            language=self.language,
+            consent_recording=_detect_recording_consent(self.transcript),
+        )
         print(f"[CALL {self.call_id}] Ended. Duration: {duration:.0f}s")
 
         # Deferred compliance audit (LLM-based rules) — don't block teardown

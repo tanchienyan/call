@@ -198,8 +198,20 @@ class QAEngine:
             generation_ms=round((time.monotonic() - t0) * 1000, 0),
         )
 
-        # Persist scorecard onto the call record
-        storage.update_call(call_id, summary=json.dumps(scorecard.to_dict(), ensure_ascii=False))
+        # Persist full scorecard as JSON blob AND populate first-class label
+        # columns so the corpus is queryable without JSON-parsing every row.
+        # See developmentplan.md §4.1.
+        storage.update_call(
+            call_id,
+            summary=json.dumps(scorecard.to_dict(), ensure_ascii=False),
+        )
+        storage.set_labels(
+            call_id,
+            outcome=scorecard.outcome,
+            outcome_source="qa_engine",
+            qa_score=scorecard.overall_score,
+            compliance_flags=compliance_flags,
+        )
 
         return scorecard
 

@@ -279,10 +279,21 @@ async function loadSingle(callId) {
 }
 
 function renderSingle(call, s) {
+  const currentOutcome = call.outcome || s.outcome || 'other';
+  const source = call.outcome_source || (call.outcome ? 'stored' : 'qa_engine');
   document.getElementById('singleTitle').textContent =
     `${call.agent_name || 'Agent'} → ${call.to_number || ''}`;
   document.getElementById('singleSub').innerHTML =
-    `<span class="badge ${s.outcome || 'other'}">${s.outcome || 'other'}</span> · ${call.duration_seconds?.toFixed(0) || 0}s · ${s.word_count || 0} words · generated in ${s.generation_ms || 0}ms`;
+    `<span class="badge ${currentOutcome}">${currentOutcome}</span>`
+    + ` <span style="color:var(--text3); font-size:11px; text-transform:uppercase; letter-spacing:0.8px;">(${source})</span>`
+    + ` · ${call.duration_seconds?.toFixed(0) || 0}s · ${s.word_count || 0} words · generated in ${s.generation_ms || 0}ms`
+    + `<div style="margin-top:10px; display:flex; gap:6px; align-items:center; flex-wrap:wrap;">`
+    + `  <span style="color:var(--text3); font-size:11px; text-transform:uppercase; letter-spacing:0.8px;">Override outcome →</span>`
+    + ['converted','qualified','declined','callback','voicemail','wrong_number','other']
+        .map(o => `<button class="tab" style="padding:4px 10px; font-size:11px;"`
+          + ` data-outcome="${o}" onclick="overrideOutcome('${call.id}', '${o}')">${o}</button>`)
+        .join('')
+    + `</div>`;
 
   const overall = s.overall_score || 0;
   const color = overall >= 75 ? 'var(--green)' : overall >= 50 ? 'var(--amber)' : 'var(--red)';
@@ -399,6 +410,23 @@ function renderSentiment(sentiment) {
 function renderCoaching(recs) {
   if (!recs || !recs.length) return '<div class="empty">No coaching recommendations</div>';
   return `<ul class="coach-list">${recs.map(r => `<li>${esc(r)}</li>`).join('')}</ul>`;
+}
+
+// Human override — reviewer correcting the auto-classified outcome.
+// Source becomes 'human'; QA engine won't re-overwrite on rescore.
+async function overrideOutcome(callId, outcome) {
+  try {
+    const resp = await fetch(`/api/calls/${callId}/outcome`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ outcome }),
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    await loadSingle(callId);
+  } catch (e) {
+    console.error('Override failed', e);
+    alert('Failed to override outcome — see console.');
+  }
 }
 
 // ─── Fleet view ───

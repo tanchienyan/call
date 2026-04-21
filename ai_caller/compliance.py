@@ -111,16 +111,21 @@ class LiveComplianceTracker:
             detection = rule.get("detection", {})
             dtype = detection.get("type")
 
-            # Only regex rules run live. LLM rules are deferred.
-            if dtype not in ("regex_any",):
-                continue
-
             flag = self.flags[rule_id]
             # Don't re-evaluate rules already resolved
             if flag.status in ("satisfied", "fired"):
                 continue
 
-            result = self._check_regex_rule(rule, role, text, turn_idx)
+            result = None
+            if dtype == "regex_any":
+                result = self._check_regex_rule(rule, role, text, turn_idx)
+            elif dtype == "first_n_turns_must_contain":
+                # This rule type requires checking at the boundary between
+                # "still within grace window" and "grace window expired", so
+                # it runs on every turn regardless of who spoke.
+                result = self._check_first_n_turns_rule(rule, turn_idx)
+            # LLM rules remain deferred to final_audit().
+
             if result:
                 status, evidence = result
                 flag.status = status
@@ -210,6 +215,54 @@ class LiveComplianceTracker:
 
         return None
 
+    def _check_first_n_turns_rule(
+        self, rule: dict, turn_idx: int
+    ) -> tuple[str, str] | None:
+        """Evaluate a ``first_n_turns_must_contain`` rule at each turn.
+
+        Semantics: within the first ``window_turns`` turns of ``context``
+        role, at least one pattern in ``patterns_any`` must appear. If yes,
+        the rule is satisfied. If the window has elapsed with no match, the
+        rule fires.
+
+        Used for AI identity disclosure (the "I'm an AI assistant" line
+        that must happen in the first N agent turns, per developmentplan.md
+        §2 C and §4.2). Role-aware because only the *agent's* own
+        turns count toward the window — the customer saying "are you an AI?"
+        doesn't satisfy it on the agent's behalf.
+        """
+        detection = rule["detection"]
+        patterns = detection.get("patterns_any", [])
+        if not patterns:
+            return None
+
+        window = int(detection.get("window_turns", 3))
+        context_role = detection.get("context", "agent")
+
+        role_turns = [
+            t for t in self.transcript if t["role"] == context_role
+        ]
+        if not role_turns:
+            # Haven't heard from this role yet — can't evaluate either way
+            return None
+
+        considered = role_turns[:window]
+        joined = " | ".join(t["text"].lower() for t in considered)
+        for pattern in patterns:
+            if re.search(pattern, joined):
+                evidence_turn = next(
+                    (t for t in considered if re.search(pattern, t["text"].lower())),
+                    considered[0],
+                )
+                return ("satisfied", f"Disclosure heard: '{evidence_turn['text']}'")
+
+        if len(role_turns) >= window:
+            return (
+                "fired",
+                f"No AI-identity disclosure in first {window} {context_role} turns",
+            )
+        return None
+
     async def final_audit(self) -> list[ComplianceFlag]:
         """Run all remaining LLM-based rules on the full transcript.
         Returns the complete flag list.
@@ -218,7 +271,8 @@ class LiveComplianceTracker:
             flag = self.flags[rule["id"]]
             detection = rule.get("detection", {})
 
-            if detection.get("type") != "llm":
+            dtype = detection.get("type")
+            if dtype != "llm":
                 # For regex rules still "pending", treat as satisfied if required
                 # by intent (e.g. identity disclosure present somewhere in transcript)
                 if flag.status == "pending" and rule["id"] in (
@@ -229,6 +283,22 @@ class LiveComplianceTracker:
                         if self._agent_disclosed_identity()
                         else "fired"
                     )
+                # A first_n_turns rule that's still pending at call end means
+                # the call ended before the window was consumed. If no match
+                # was ever heard, fire it; otherwise leave satisfied.
+                elif flag.status == "pending" and dtype == "first_n_turns_must_contain":
+                    patterns = detection.get("patterns_any", [])
+                    context_role = detection.get("context", "agent")
+                    joined = " | ".join(
+                        t["text"].lower()
+                        for t in self.transcript if t["role"] == context_role
+                    )
+                    matched = any(re.search(p, joined) for p in patterns)
+                    flag.status = "satisfied" if matched else "fired"
+                    if not matched:
+                        flag.evidence = (
+                            f"Call ended without required disclosure ({context_role})"
+                        )
                 continue
 
             if flag.status in ("satisfied", "fired"):

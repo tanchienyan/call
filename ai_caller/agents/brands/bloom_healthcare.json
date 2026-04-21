@@ -1,0 +1,22 @@
+{
+  "brand_id": "bloom_healthcare",
+  "brand_name": "The Bloom Healthcare Group",
+  "parent_brand": null,
+  "industry": "healthcare",
+  "market": "MY",
+  "description": "Parent brand for the Bloom Healthcare pivot (developmentplan.md §3). Sub-brands Cantiq Clinic and Kheng Dental inherit from this profile via the `parent_brand` chain.",
+  "tone": "Warm, respectful wellness register. Never clinical, never aggressive. If a caller sounds unwell or distressed, acknowledge first, then redirect to the clinic — never attempt to triage or reassure them about symptoms.",
+  "default_voice_id": "XrExE9yKIg1WjnnlVkGX",
+  "default_variables": {
+    "brand_name": "The Bloom Healthcare Group",
+    "clinic_name": "Bloom Wellness Centre",
+    "clinic_phone": "the Bloom care line"
+  },
+  "locations": {
+    "bloom_kl_sentral": {
+      "name": "Bloom Wellness — KL Sentral",
+      "address": "Level 3, Kompleks Bloom, Jalan Stesen Sentral 5, 50470 KL",
+      "phone": "+603-XXXXXXXX"
+    }
+  }
+}

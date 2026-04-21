@@ -9,6 +9,33 @@
   "applies_to_scenarios": ["uts_bt_bahasa", "uts_bt_en"],
   "rules": [
     {
+      "id": "ai_identity_disclosure",
+      "title": "AI identity proactively disclosed",
+      "requirement": "Within the first two agent turns, the agent must proactively state it is an AI assistant / automated system. This is our stance on transparency (developmentplan.md §2 C) and reduces post-call complaints + pre-empts deceptive-AI regulation.",
+      "severity": "mandatory",
+      "detection": {
+        "type": "first_n_turns_must_contain",
+        "context": "agent",
+        "window_turns": 2,
+        "patterns_any": [
+          "ai (?:assistant|agent)",
+          "automated (?:call|system|assistant)",
+          "virtual assistant",
+          "pembantu ai",
+          "pembantu digital",
+          "panggilan automatik",
+          "ejen ai",
+          "人工智能",
+          "智能助理",
+          "ai 助手"
+        ]
+      },
+      "fire_on": "missing_after_window",
+      "severity_on_miss": "high",
+      "audience": "internal_qa_only",
+      "copilot_card": "Say: 'I'm an AI assistant calling on behalf of…' in your next turn."
+    },
+    {
       "id": "identity_disclosure",
       "title": "Agent and company identity disclosure",
       "requirement": "Within the first 30 seconds of speech, the agent must state their name and the company they are calling on behalf of.",
@@ -63,10 +90,23 @@
         "triggers_any": [
           "today only",
           "last chance",
-          "limited (?:time|offer)",
+          "final chance",
+          "limited (?:time|offer|slots?)",
+          "offer (?:ends|expires) (?:today|tonight|tomorrow)",
+          "only (?:\\d+|a few) (?:spots?|slots?|seats?) left",
           "hari ini sahaja",
-          "tawaran terhad",
-          "peluang terakhir"
+          "semata-mata hari ini",
+          "tawaran (?:terhad|terakhir)",
+          "peluang terakhir",
+          "pendaftaran (?:terhad|tutup)",
+          "tinggal (?:sedikit|beberapa) sahaja",
+          "jangan (?:lepaskan|terlepas) peluang",
+          "puan harus (?:decide|putuskan) sekarang",
+          "今天(?:截止|最后)",
+          "最后(?:机会|一天)",
+          "名额有限",
+          "机会难得",
+          "立即(?:决定|行动)"
         ]
       },
       "fire_on": "trigger_matched",

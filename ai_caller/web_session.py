@@ -82,6 +82,9 @@ class WebCallSession:
         
         storage.update_call(self.call_id, status="connected",
                            started_at=self.started_at.isoformat())
+        # Record the call language on the label columns so corpus queries can
+        # filter by ms/zh/multi/en even for calls that never finish scoring.
+        storage.set_labels(self.call_id, language=self.language)
 
         # For non-English agents we use the scripted first_message directly.
         # LLM-generated openings in Bahasa/Mandarin tend to drift register or
@@ -379,6 +382,15 @@ class WebCallSession:
                            transcript=self.transcript,
                            ended_at=datetime.utcnow().isoformat(),
                            cost_estimate_cents=round(self.chars_spoken * 0.03, 2))
+        # Cheap heuristic for recording-consent label: if the agent mentioned
+        # "recorded" / "direkod" / "录音" AND the customer didn't explicitly
+        # refuse, mark consent=True. The authoritative audit still runs via
+        # the LLM-based recording_consent compliance rule in QA.
+        storage.set_labels(
+            self.call_id,
+            consent_recording=_detect_recording_consent(self.transcript),
+            language=self.language,
+        )
         print(f"[WEB {self.call_id}] Ended. Duration: {duration:.0f}s")
 
         # Run final compliance audit (LLM-based rules) asynchronously so the
@@ -387,3 +399,47 @@ class WebCallSession:
             asyncio.create_task(self.copilot.finalize())
         except Exception as e:
             print(f"[WEB {self.call_id}] Copilot finalize error: {e}")
+
+
+# Regex needles that indicate the agent disclosed recording across our
+# three target languages. Kept module-scope so unit tests can import them.
+_RECORDING_AGENT_PATTERNS = (
+    "recorded",
+    "recording this call",
+    "quality purposes",
+    "direkod",
+    "rekod",
+    "录音",
+    "录制",
+    "通话会被",
+)
+_RECORDING_CUSTOMER_REFUSAL_PATTERNS = (
+    "don't record",
+    "jangan rekod",
+    "tak nak direkod",
+    "不要录音",
+    "no recording",
+)
+
+
+def _detect_recording_consent(transcript: list[dict]) -> bool:
+    """Return True iff the agent disclosed recording and the customer did
+    not explicitly refuse afterward. Used only for the fast label column;
+    the LLM-based compliance rule remains the authoritative check.
+    """
+    if not transcript:
+        return False
+    disclosed_at: int | None = None
+    for i, turn in enumerate(transcript):
+        text = (turn.get("text") or "").lower()
+        if turn.get("role") == "agent" and any(p in text for p in _RECORDING_AGENT_PATTERNS):
+            disclosed_at = i
+            break
+    if disclosed_at is None:
+        return False
+    for turn in transcript[disclosed_at:]:
+        if turn.get("role") == "user":
+            text = (turn.get("text") or "").lower()
+            if any(p in text for p in _RECORDING_CUSTOMER_REFUSAL_PATTERNS):
+                return False
+    return True

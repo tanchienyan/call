@@ -1,0 +1,22 @@
+{
+  "brand_id": "cantiq_clinic",
+  "brand_name": "Cantiq Clinic",
+  "parent_brand": "bloom_healthcare",
+  "industry": "healthcare_aesthetics",
+  "market": "MY",
+  "description": "Cantiq Clinic (aesthetic medicine) sub-brand under Bloom Healthcare. Callers are usually cosmetic patients — tone skews aspirational and reassuring but never clinical.",
+  "tone": "Aspirational, warm, a little more elevated than the parent brand. Use phrases like 'looking forward to seeing you' and 'how's everything going beautifully'. Never promise results, never discuss specific procedures by trade name.",
+  "default_voice_id": "XrExE9yKIg1WjnnlVkGX",
+  "default_variables": {
+    "brand_name": "Cantiq Clinic",
+    "clinic_name": "Cantiq Aesthetic Clinic",
+    "clinic_phone": "the Cantiq care line"
+  },
+  "locations": {
+    "cantiq_bangsar": {
+      "name": "Cantiq — Bangsar",
+      "address": "Unit 12A, Bangsar Shopping Centre, 59100 KL",
+      "phone": "+603-XXXXXXXX"
+    }
+  }
+}

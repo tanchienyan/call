@@ -1,0 +1,23 @@
+{
+  "brand_id": "kheng_dental",
+  "brand_name": "Kheng Dental",
+  "parent_brand": "bloom_healthcare",
+  "industry": "healthcare_dental",
+  "market": "MY",
+  "description": "Kheng Dental sub-brand under Bloom Healthcare. Practical family-dentistry register — slightly less aspirational than Cantiq, more 'see you at the 6-month checkup'.",
+  "tone": "Professional, friendly, practical. 'How's everything feeling' rather than 'going beautifully'. Never give oral-health advice — defer to Dr. {{doctor_name}} or the clinic.",
+  "default_voice_id": "XrExE9yKIg1WjnnlVkGX",
+  "default_variables": {
+    "brand_name": "Kheng Dental",
+    "clinic_name": "Kheng Dental Surgery",
+    "clinic_phone": "the Kheng Dental front desk",
+    "doctor_name": "Dr. Kheng"
+  },
+  "locations": {
+    "kheng_pj": {
+      "name": "Kheng Dental — Petaling Jaya",
+      "address": "No. 8, Jalan SS2/24, 47300 Petaling Jaya",
+      "phone": "+603-XXXXXXXX"
+    }
+  }
+}

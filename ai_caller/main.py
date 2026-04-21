@@ -1,5 +1,6 @@
 """AI Outbound Caller — FastAPI server with Twilio WebSocket integration."""
 import json
+import re
 import uuid
 from pathlib import Path
 
@@ -28,13 +29,16 @@ pending_agents: dict[str, dict] = {}  # call_id → prepared agent config
 STATIC_DIR = Path(__file__).parent / "static"
 STATIC_DIR.mkdir(exist_ok=True)
 
-# Agent configs
+# Agent + brand configs
 AGENTS_DIR = Path(__file__).parent / "agents"
-_agents_cache = {}
+BRANDS_DIR = AGENTS_DIR / "brands"
 
 
 def load_agents() -> dict:
-    """Load all agent scenario configs."""
+    """Load all agent scenario configs from agents/*.json.
+
+    Skips the brands/ subdirectory — those are tenant profiles, not agents.
+    """
     agents = {}
     for f in AGENTS_DIR.glob("*.json"):
         with open(f) as fh:
@@ -43,24 +47,109 @@ def load_agents() -> dict:
     return agents
 
 
-def get_agent(scenario: str, variables: dict = None) -> dict:
-    """Get agent config with template variables filled in."""
+def load_brands() -> dict:
+    """Load all brand/tenant profile configs from agents/brands/*.json.
+
+    A brand profile provides default_variables, tone, default_voice_id, and
+    optional location metadata that get merged onto any agent invoked under
+    that brand_id. This is the seam for multi-tenant / multi-campaign use
+    (developmentplan.md §4.4).
+    """
+    brands = {}
+    if not BRANDS_DIR.exists():
+        return brands
+    for f in BRANDS_DIR.glob("*.json"):
+        with open(f) as fh:
+            data = json.load(fh)
+            bid = data.get("brand_id") or f.stem
+            brands[bid] = data
+    return brands
+
+
+def _interpolate(text: str, variables: dict) -> str:
+    """Replace {{var}} placeholders and mark leftovers as not specified."""
+    for var, val in variables.items():
+        text = text.replace("{{" + var + "}}", str(val))
+    return re.sub(r"\{\{[^}]+\}\}", "[not specified]", text)
+
+
+def get_agent(scenario: str, variables: dict | None = None,
+              brand_id: str | None = None) -> dict:
+    """Get agent config with brand profile + template variables applied.
+
+    Merge order (later overrides earlier):
+    1. Agent JSON defaults
+    2. Brand default_variables (if brand_id provided)
+    3. Call-level variables from the request
+    4. Overrides applied by callers (voice_id, system_prompt_override, etc.)
+
+    Brand tone — if present — is prepended to the agent system_prompt as a
+    standalone directive block so the agent can speak with the brand voice
+    without touching every prompt in the repo.
+    """
     agents = load_agents()
     if scenario not in agents:
         raise ValueError(f"Unknown scenario: {scenario}")
-    
-    agent = agents[scenario].copy()
-    variables = variables or {}
-    
-    # Replace template variables in prompts
-    for key in ["system_prompt", "first_message"]:
-        if key in agent:
-            for var, val in variables.items():
-                agent[key] = agent[key].replace("{{" + var + "}}", val)
-            # Remove unfilled placeholders
-            import re
-            agent[key] = re.sub(r'\{\{[^}]+\}\}', '[not specified]', agent[key])
-    
+
+    agent = json.loads(json.dumps(agents[scenario]))  # deep copy
+    variables = dict(variables or {})
+
+    # Brand layer
+    brand = None
+    if brand_id:
+        brands = load_brands()
+        brand = brands.get(brand_id)
+        if brand is None:
+            raise ValueError(f"Unknown brand_id: {brand_id}")
+
+        # Call-level variables win over brand defaults.
+        merged = dict(brand.get("default_variables") or {})
+        merged.update(variables)
+        variables = merged
+
+        # Prepend brand tone so it's first thing the model sees.
+        tone = (brand.get("tone") or "").strip()
+        if tone:
+            agent["system_prompt"] = (
+                f"# BRAND TONE ({brand.get('brand_name', brand_id)})\n{tone}\n\n"
+                + agent.get("system_prompt", "")
+            )
+
+        # Brand default_voice_id is a fallback — agent's own voice wins.
+        if not agent.get("voice_id"):
+            default_vid = brand.get("default_voice_id")
+            if default_vid:
+                agent["voice_id"] = default_vid
+
+        agent["brand_id"] = brand_id
+
+    for key in ("system_prompt", "first_message"):
+        if key in agent and isinstance(agent[key], str):
+            agent[key] = _interpolate(agent[key], variables)
+
+    return agent
+
+
+def _prepare_agent_from_request(req: "MakeCallRequest") -> dict:
+    """Centralised pipeline applying brand merge + all per-call overrides.
+
+    Used by both the Twilio path (/api/call) and the web path (/api/web-call)
+    so they stay in sync. Historically the Twilio path dropped voice_settings
+    and phone_fx overrides — see developmentplan.md §4.6.
+    """
+    agent = get_agent(req.scenario, req.variables, req.brand_id)
+
+    if req.voice_id:
+        agent["voice_id"] = req.voice_id
+    if req.voice_settings:
+        agent["voice_settings"] = req.voice_settings
+    if req.system_prompt_override:
+        agent["system_prompt"] = req.system_prompt_override
+    if req.first_message_override:
+        agent["first_message"] = req.first_message_override
+    if req.phone_fx:
+        agent["phone_fx"] = True
+        agent["phone_fx_settings"] = req.phone_fx_settings or {}
     return agent
 
 
@@ -69,6 +158,7 @@ def get_agent(scenario: str, variables: dict = None) -> dict:
 class MakeCallRequest(BaseModel):
     to_number: str
     scenario: str = "debt_reminder"
+    brand_id: Optional[str] = None
     voice_id: Optional[str] = None
     variables: dict = {}
     voice_settings: Optional[dict] = None
@@ -76,6 +166,11 @@ class MakeCallRequest(BaseModel):
     phone_fx_settings: Optional[dict] = None
     system_prompt_override: Optional[str] = None
     first_message_override: Optional[str] = None
+
+
+class OutcomeLabelRequest(BaseModel):
+    outcome: str
+    notes: Optional[str] = None
 
 
 class TwilioStatusCallback(BaseModel):
@@ -97,15 +192,15 @@ async def dashboard():
 async def initiate_call(req: MakeCallRequest):
     """Start an outbound AI phone call."""
     try:
-        agent = get_agent(req.scenario, req.variables)
+        agent = _prepare_agent_from_request(req)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    
-    # Override voice if specified
-    if req.voice_id:
-        agent["voice_id"] = req.voice_id
-    
-    result = make_outbound_call(req.to_number, agent)
+
+    result = make_outbound_call(req.to_number, agent, brand_id=req.brand_id)
+    # Cache so the Twilio WS handler can pick up the fully-prepared agent
+    # (including variables, overrides, brand tone) rather than re-loading
+    # the raw scenario JSON. See developmentplan.md §4.6.
+    pending_agents[result["call_id"]] = agent
     return result
 
 
@@ -128,6 +223,45 @@ async def get_call(call_id: str):
 async def get_agents():
     """List available agent scenarios."""
     return load_agents()
+
+
+@app.get("/api/brands")
+async def get_brands():
+    """List available brand / tenant profiles."""
+    return load_brands()
+
+
+@app.patch("/api/calls/{call_id}/outcome")
+async def set_call_outcome(call_id: str, req: OutcomeLabelRequest):
+    """Human-override the outcome label on a call.
+
+    The QA engine writes outcome_source='qa_engine' automatically; this
+    endpoint lets a reviewer correct it (source becomes 'human'). Used by
+    the reviewer button in qa.html per developmentplan.md §4.7.
+    """
+    call = storage.get_call(call_id)
+    if not call:
+        raise HTTPException(404, "Call not found")
+    allowed = {
+        "converted", "qualified", "declined", "callback",
+        "voicemail", "wrong_number", "other",
+    }
+    if req.outcome not in allowed:
+        raise HTTPException(
+            400,
+            f"outcome must be one of: {sorted(allowed)}",
+        )
+    storage.set_labels(
+        call_id,
+        outcome=req.outcome,
+        outcome_source="human",
+    )
+    return {
+        "ok": True,
+        "call_id": call_id,
+        "outcome": req.outcome,
+        "outcome_source": "human",
+    }
 
 
 @app.get("/api/voices")
@@ -176,13 +310,21 @@ async def twilio_websocket(websocket: WebSocket, call_id: str):
         await websocket.close()
         return
     
-    # Load agent config
-    try:
-        agent = get_agent(call["agent_scenario"])
-        if call.get("voice_id"):
-            agent["voice_id"] = call["voice_id"]
-    except ValueError:
-        agent = get_agent("debt_reminder")
+    # Prefer the cached, fully-prepared agent (with vars interpolated, brand
+    # tone merged, overrides applied) left here by /api/call. Falls back to
+    # a fresh scenario load only when the cache has expired or when Twilio
+    # reconnects after a restart.
+    agent = pending_agents.pop(call_id, None)
+    if agent is None:
+        try:
+            agent = get_agent(
+                call["agent_scenario"],
+                brand_id=call.get("brand_id"),
+            )
+            if call.get("voice_id"):
+                agent["voice_id"] = call["voice_id"]
+        except ValueError:
+            agent = get_agent("debt_reminder")
     
     # Create call session
     session = CallSession(call_id, websocket, agent)
@@ -266,21 +408,9 @@ async def web_call_websocket(websocket: WebSocket, call_id: str):
 async def create_web_call(req: MakeCallRequest):
     """Create a web-based test call (no Twilio, no cost)."""
     try:
-        agent = get_agent(req.scenario, req.variables)
+        agent = _prepare_agent_from_request(req)
     except ValueError as e:
         raise HTTPException(400, str(e))
-
-    if req.voice_id:
-        agent["voice_id"] = req.voice_id
-    if req.voice_settings:
-        agent["voice_settings"] = req.voice_settings
-    if req.system_prompt_override:
-        agent["system_prompt"] = req.system_prompt_override
-    if req.first_message_override:
-        agent["first_message"] = req.first_message_override
-    if req.phone_fx:
-        agent["phone_fx"] = True
-        agent["phone_fx_settings"] = req.phone_fx_settings or {}
 
     call_id = f"web_{uuid.uuid4().hex[:12]}"
     storage.create_call(
@@ -290,6 +420,9 @@ async def create_web_call(req: MakeCallRequest):
         agent_name=agent.get("name", "AI Agent"),
         agent_scenario=agent.get("scenario", "custom"),
         voice_id=agent.get("voice_id", ""),
+        brand_id=req.brand_id,
+        channel="voice",
+        language=agent.get("language", "en"),
     )
     pending_agents[call_id] = agent  # Cache prepared agent for WS handler
     return {"call_id": call_id, "status": "ready", "ws_url": f"/ws/web/{call_id}"}

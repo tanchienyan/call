@@ -1,7 +1,14 @@
-"""Synthetic call transcript generator for the UTS demo fleet dashboard.
+"""DEMO-ONLY synthetic call transcript generator.
 
-Generates N plausible credit-card balance-transfer call transcripts in Bahasa +
-English code-switched Malaysian telemarketing register. Each call has:
+⚠️  IMPORTANT (developmentplan.md §4.5): Every row inserted by this script is
+tagged with ``is_synthetic=1`` on the ``calls`` table. These rows exist only
+to populate the fleet dashboard for live demos — they are NOT real calls and
+MUST NEVER be exported as part of the conversation corpus, used as fine-tune
+training data, or shown in customer-facing metrics. All corpus-export queries
+(``storage.list_calls_with_labels``) exclude synthetic rows by default.
+
+Generates N plausible credit-card balance-transfer call transcripts in Bahasa
++ English code-switched Malaysian telemarketing register. Each call has:
 
 - Varied outcome distribution (converted, qualified, declined, voicemail,
   wrong_number, callback) roughly matching real BPO campaign stats
@@ -14,9 +21,9 @@ English code-switched Malaysian telemarketing register. Each call has:
 Run once before the demo:
     python synth_data.py --count 100
 
-This writes to data/calls.db as normal calls with agent_scenario="uts_bt_synth"
-plus a precomputed scorecard in the summary column, so the fleet dashboard
-loads instantly without re-running LLM calls.
+This writes to data/calls.db as calls with agent_scenario="uts_bt_synth" and
+``is_synthetic=1``, plus a precomputed scorecard in the summary column so the
+fleet dashboard loads instantly without re-running LLM calls.
 
 For the demo: 100 calls is plenty. 500 looks more impressive but is 5x LLM
 cost. Decided in demo.md §18 decision #4.
@@ -177,7 +184,8 @@ async def generate_one_call(seq: int, compliance_pack_id: str = "piam_consumer_c
     call_id = f"synth_{uuid.uuid4().hex[:12]}"
     duration = max(20, sum(len(t.get("text", "").split()) for t in transcript) * 0.45)
 
-    # Insert into DB
+    # Insert into DB with the synthetic tag so corpus-export queries and
+    # real-fleet aggregates can safely exclude these rows.
     storage.create_call(
         call_id=call_id,
         to_number=f"+60{random.randint(100000000, 999999999)}",
@@ -185,6 +193,10 @@ async def generate_one_call(seq: int, compliance_pack_id: str = "piam_consumer_c
         agent_name=agent_info["name"],
         agent_scenario="uts_bt_synth",
         voice_id="synth",
+        brand_id="uts_insurance",
+        channel="voice",
+        language="multi",
+        is_synthetic=True,
     )
     storage.update_call(
         call_id,
@@ -193,6 +205,16 @@ async def generate_one_call(seq: int, compliance_pack_id: str = "piam_consumer_c
         duration_seconds=round(duration, 1),
         started_at=datetime.utcnow().isoformat(),
         ended_at=datetime.utcnow().isoformat(),
+    )
+    # Ground-truth outcome label on the column itself (QA engine would
+    # overwrite with outcome_source='qa_engine', which is fine — either
+    # way the `outcome` column is populated for fleet queries).
+    storage.set_labels(
+        call_id,
+        outcome=outcome,
+        outcome_source="synth",
+        language="multi",
+        brand_id="uts_insurance",
     )
 
     # Score it

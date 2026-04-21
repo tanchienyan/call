@@ -6,6 +6,13 @@ __pycache__/
 *.sqlite
 .DS_Store
 
+# Python virtual environments (never commit — they contain 100MB+ binaries)
+.venv/
+venv/
+env/
+**/.venv/
+**/venv/
+
 # Demo capture assets — too large / contain presenter audio
 ai_caller/demo_fallbacks/*
 !ai_caller/demo_fallbacks/README.md
