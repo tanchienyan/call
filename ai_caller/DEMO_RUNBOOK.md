@@ -250,8 +250,8 @@ answer fully.
 
 ## The questions Kenneth will probably ask
 
-Pre-loaded answers — see `demo.md §4 Commercial posture crib sheet`. Keep the
-printed crib sheet next to the runbook.
+Pre-loaded answers — see `docs/pilot_scope.md` for the commercial crib sheet. Keep the
+printed 1-pager next to the runbook.
 
 The five most likely:
 
@@ -267,7 +267,7 @@ The five most likely:
 
 Within 2 hours of the call ending:
 
-- [ ] Send follow-up email with: 2-paragraph summary, 4-slide PDF deck, pilot SoW draft (from `demo.md §16 post-demo decision tree`)
+- [ ] Send follow-up email with: 2-paragraph summary, 4-slide PDF deck, pilot SoW draft (from `docs/developer_plan.md` §8 "Post-demo engineering actions" + `docs/plan.md` §9 for decision tree)
 - [ ] Save call_id of the live demo call for reference
 - [ ] Export the QA scorecard PDF for Kenneth as a "here's what the output looks like" attachment
 - [ ] Log actual scenario timings vs. script (for next demo calibration)

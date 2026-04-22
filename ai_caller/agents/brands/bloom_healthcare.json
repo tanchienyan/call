@@ -4,7 +4,7 @@
   "parent_brand": null,
   "industry": "healthcare",
   "market": "MY",
-  "description": "Parent brand for the Bloom Healthcare pivot (developmentplan.md §3). Sub-brands Cantiq Clinic and Kheng Dental inherit from this profile via the `parent_brand` chain.",
+  "description": "Parent brand for the Bloom Healthcare pivot (docs/developer_plan.md §3). Sub-brands Cantiq Clinic and Kheng Dental inherit from this profile via the `parent_brand` chain.",
   "tone": "Warm, respectful wellness register. Never clinical, never aggressive. If a caller sounds unwell or distressed, acknowledge first, then redirect to the clinic — never attempt to triage or reassure them about symptoms.",
   "default_voice_id": "XrExE9yKIg1WjnnlVkGX",
   "default_variables": {

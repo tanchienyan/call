@@ -200,7 +200,7 @@ class QAEngine:
 
         # Persist full scorecard as JSON blob AND populate first-class label
         # columns so the corpus is queryable without JSON-parsing every row.
-        # See developmentplan.md §4.1.
+        # See docs/developer_plan.md §4.1.
         storage.update_call(
             call_id,
             summary=json.dumps(scorecard.to_dict(), ensure_ascii=False),
@@ -266,7 +266,9 @@ class QAEngine:
             collected += chunk
 
         try:
-            await stream_chat(messages, collect)
+            # Scorecard JSON with evidence quotes can run ~1000 tokens;
+            # default 300 truncates it and the JSON parse fails.
+            await stream_chat(messages, collect, max_tokens=1500)
         except Exception as e:
             print(f"[QA] LLM error: {e}")
             return {}

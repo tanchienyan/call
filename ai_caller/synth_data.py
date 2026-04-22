@@ -1,6 +1,6 @@
 """DEMO-ONLY synthetic call transcript generator.
 
-⚠️  IMPORTANT (developmentplan.md §4.5): Every row inserted by this script is
+⚠️  IMPORTANT (docs/developer_plan.md §4.5): Every row inserted by this script is
 tagged with ``is_synthetic=1`` on the ``calls`` table. These rows exist only
 to populate the fleet dashboard for live demos — they are NOT real calls and
 MUST NEVER be exported as part of the conversation corpus, used as fine-tune
@@ -26,7 +26,7 @@ This writes to data/calls.db as calls with agent_scenario="uts_bt_synth" and
 fleet dashboard loads instantly without re-running LLM calls.
 
 For the demo: 100 calls is plenty. 500 looks more impressive but is 5x LLM
-cost. Decided in demo.md §18 decision #4.
+cost. Decided in docs/plan.md §18 decision #4.
 """
 from __future__ import annotations
 
@@ -91,10 +91,25 @@ No prose, no markdown. Use Malaysian names, natural speech."""
 
 
 QUALITY_INSTRUCTIONS = {
-    "excellent": "Agent executes perfectly: full opening, recording consent, effective-rate disclosure, no pressure, handles objections well.",
-    "good": "Agent does most beats well but may forget recording consent OR effective-rate disclosure ONCE.",
-    "mediocre": "Agent misses recording consent OR rushes pitch without disclosure. May interrupt customer.",
-    "poor": "Agent skips recording consent AND effective-rate disclosure. Uses mild pressure tactics like 'hari ini sahaja' or 'last chance'. Doesn't respect opt-out quickly.",
+    "excellent": (
+        "Agent executes perfectly: opens with AI-identity disclosure in turn 1 "
+        "(e.g. 'saya pembantu AI dari MayFirst' / 'I'm an AI assistant from…'), "
+        "full opening, recording consent, effective-rate disclosure, no pressure, "
+        "handles objections well."
+    ),
+    "good": (
+        "Agent discloses AI identity in first 2 turns. Does most beats well but "
+        "may forget recording consent OR effective-rate disclosure ONCE."
+    ),
+    "mediocre": (
+        "Agent may or may not disclose AI identity. Misses recording consent OR "
+        "rushes pitch without disclosure. May interrupt customer."
+    ),
+    "poor": (
+        "Agent does NOT disclose AI identity. Skips recording consent AND "
+        "effective-rate disclosure. Uses mild pressure tactics like 'hari ini "
+        "sahaja' or 'last chance'. Doesn't respect opt-out quickly."
+    ),
 }
 
 
@@ -143,7 +158,9 @@ async def generate_transcript(customer_name: str, outcome: str, quality: str) ->
         nonlocal collected
         collected += chunk
 
-    await stream_chat(messages, collect)
+    # Transcript JSON arrays can exceed the live-call 300-token default.
+    # Budget 2000 so 18-turn calls fit without truncation → no "Bad JSON" loss.
+    await stream_chat(messages, collect, max_tokens=2000)
 
     # Strip code fences
     import re as _re

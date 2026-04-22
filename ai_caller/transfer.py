@@ -14,7 +14,7 @@ Handles the AI → human handoff. Two paths:
 
 For the April demo, path #1 is the primary path — it's deterministic and
 doesn't depend on Twilio conference quirks. Path #2 is built and plugged in
-but kept off the critical demo path per demo.md §5 risk #3.
+but kept off the critical demo path per docs/plan.md §5 risk #3.
 """
 from __future__ import annotations
 

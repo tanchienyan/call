@@ -226,7 +226,7 @@ class LiveComplianceTracker:
         rule fires.
 
         Used for AI identity disclosure (the "I'm an AI assistant" line
-        that must happen in the first N agent turns, per developmentplan.md
+        that must happen in the first N agent turns, per docs/developer_plan.md
         §2 C and §4.2). Role-aware because only the *agent's* own
         turns count toward the window — the customer saying "are you an AI?"
         doesn't satisfy it on the agent's behalf.
@@ -350,7 +350,9 @@ class LiveComplianceTracker:
             response_text += chunk
 
         try:
-            await stream_chat(messages, collect)
+            # Compliance LLM rules return small JSON ({fired, evidence}) but
+            # evidence quotes can run long; 600 gives plenty of headroom.
+            await stream_chat(messages, collect, max_tokens=600)
         except Exception as e:
             print(f"[COMPLIANCE] LLM error on {rule['id']}: {e}")
             return None

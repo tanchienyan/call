@@ -238,7 +238,7 @@ class CallSession:
             transcript=self.transcript,
             ended_at=datetime.utcnow().isoformat(),
         )
-        # Populate corpus label columns — see developmentplan.md §4.1.
+        # Populate corpus label columns — see docs/developer_plan.md §4.1.
         # Imported lazily to avoid a circular import at module load time.
         from web_session import _detect_recording_consent
         storage.set_labels(

@@ -1,11 +1,11 @@
 """SQLite storage for calls, transcripts, and corpus labels.
 
-Schema design note: as of developmentplan.md §4.1 the `calls` table carries
+Schema design note: as of docs/developer_plan.md §4.1 the `calls` table carries
 the first-class labels that make the corpus queryable (outcome, language,
 consent_recording, compliance_flags_json, qa_score, brand_id, channel,
 is_synthetic). These are persisted by the write paths in `qa_engine.py`,
 `web_session.py`, and `pipeline.py` so every live call feeds the corpus
-moat. See developmentplan.md §9 for how this supports the Series A narrative.
+moat. See docs/developer_plan.md §9 for how this supports the Series A narrative.
 
 The table remains named `calls` for now. §4.8 of the plan will rename it to
 `conversations` once the WhatsApp channel lands; the `channel` column here
@@ -219,7 +219,7 @@ def list_calls_with_labels(limit: int = 200,
 
     Used by the /api/corpus/* endpoints (planned §4.11). Keeps payloads
     small and excludes synthetic calls by default — the corpus moat per
-    developmentplan.md §9 is real calls only.
+    docs/developer_plan.md §9 is real calls only.
     """
     conn = get_db()
     where = ["1=1"]

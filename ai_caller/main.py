@@ -1,9 +1,12 @@
 """AI Outbound Caller — FastAPI server with Twilio WebSocket integration."""
+import asyncio
 import json
 import re
+import time
 import uuid
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -53,7 +56,7 @@ def load_brands() -> dict:
     A brand profile provides default_variables, tone, default_voice_id, and
     optional location metadata that get merged onto any agent invoked under
     that brand_id. This is the seam for multi-tenant / multi-campaign use
-    (developmentplan.md §4.4).
+    (docs/developer_plan.md §4.4).
     """
     brands = {}
     if not BRANDS_DIR.exists():
@@ -135,7 +138,7 @@ def _prepare_agent_from_request(req: "MakeCallRequest") -> dict:
 
     Used by both the Twilio path (/api/call) and the web path (/api/web-call)
     so they stay in sync. Historically the Twilio path dropped voice_settings
-    and phone_fx overrides — see developmentplan.md §4.6.
+    and phone_fx overrides — see docs/developer_plan.md §4.6.
     """
     agent = get_agent(req.scenario, req.variables, req.brand_id)
 
@@ -199,7 +202,7 @@ async def initiate_call(req: MakeCallRequest):
     result = make_outbound_call(req.to_number, agent, brand_id=req.brand_id)
     # Cache so the Twilio WS handler can pick up the fully-prepared agent
     # (including variables, overrides, brand tone) rather than re-loading
-    # the raw scenario JSON. See developmentplan.md §4.6.
+    # the raw scenario JSON. See docs/developer_plan.md §4.6.
     pending_agents[result["call_id"]] = agent
     return result
 
@@ -237,7 +240,7 @@ async def set_call_outcome(call_id: str, req: OutcomeLabelRequest):
 
     The QA engine writes outcome_source='qa_engine' automatically; this
     endpoint lets a reviewer correct it (source becomes 'human'). Used by
-    the reviewer button in qa.html per developmentplan.md §4.7.
+    the reviewer button in qa.html per docs/developer_plan.md §4.7.
     """
     call = storage.get_call(call_id)
     if not call:
@@ -535,15 +538,78 @@ async def demo_launcher():
 
 # ─── Health ───
 
+# ─── Health endpoint ────────────────────────────────────────────────────────
+# Real provider probes with a 30s cache so /api/health reflects actual auth
+# state, not just env-var presence. See developer_plan.md §4 T-4.
+
+_HEALTH_CACHE_TTL = 30  # seconds
+_HEALTH_PROBE_TIMEOUT = 2  # seconds per provider
+_health_cache: dict[str, tuple[float, bool]] = {}  # {provider: (expires_at, ok)}
+
+
+async def _probe_provider(name: str, url: str, headers: dict) -> bool:
+    """Cheap GET against a provider to verify the key authenticates.
+
+    Returns True only on HTTP 200. Cached for _HEALTH_CACHE_TTL seconds so
+    that an operator hammering /api/health doesn't burn rate limits.
+    """
+    now = time.time()
+    cached = _health_cache.get(name)
+    if cached and cached[0] > now:
+        return cached[1]
+    try:
+        async with httpx.AsyncClient(timeout=_HEALTH_PROBE_TIMEOUT) as c:
+            r = await c.get(url, headers=headers)
+            ok = r.status_code == 200
+    except Exception:
+        ok = False
+    _health_cache[name] = (now + _HEALTH_CACHE_TTL, ok)
+    return ok
+
+
 @app.get("/api/health")
 async def health():
+    # Only probe providers whose keys are actually set. An empty key is
+    # trivially "down" — no need to burn a network round-trip.
+    async def _check(name, url, hdr, has_key):
+        if not has_key:
+            return False
+        return await _probe_provider(name, url, hdr)
+
+    openai_ok, deepgram_ok, elevenlabs_ok = await asyncio.gather(
+        _check(
+            "openai",
+            "https://api.openai.com/v1/models",
+            {"Authorization": f"Bearer {config.OPENAI_API_KEY}"},
+            bool(config.OPENAI_API_KEY),
+        ),
+        _check(
+            "deepgram",
+            "https://api.deepgram.com/v1/projects",
+            {"Authorization": f"Token {config.DEEPGRAM_API_KEY}"},
+            bool(config.DEEPGRAM_API_KEY),
+        ),
+        _check(
+            "elevenlabs",
+            "https://api.elevenlabs.io/v1/voices",
+            {"xi-api-key": config.ELEVENLABS_API_KEY},
+            bool(config.ELEVENLABS_API_KEY),
+        ),
+    )
+
+    # Twilio is optional for browser-only demos — report presence, not live
+    # auth (Twilio's auth check requires a billed API call).
+    twilio_present = bool(config.TWILIO_ACCOUNT_SID)
+
+    core_ok = openai_ok and deepgram_ok and elevenlabs_ok
     return {
-        "status": "ok",
+        "status": "ok" if core_ok else "degraded",
         "active_calls": len(active_sessions),
-        "twilio": bool(config.TWILIO_ACCOUNT_SID),
-        "deepgram": bool(config.DEEPGRAM_API_KEY),
-        "elevenlabs": bool(config.ELEVENLABS_API_KEY),
-        "openai": bool(config.OPENAI_API_KEY),
+        "openai": openai_ok,
+        "deepgram": deepgram_ok,
+        "elevenlabs": elevenlabs_ok,
+        "twilio": twilio_present,
+        "cache_ttl_seconds": _HEALTH_CACHE_TTL,
     }
 
 

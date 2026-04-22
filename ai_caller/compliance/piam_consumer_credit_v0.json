@@ -11,7 +11,7 @@
     {
       "id": "ai_identity_disclosure",
       "title": "AI identity proactively disclosed",
-      "requirement": "Within the first two agent turns, the agent must proactively state it is an AI assistant / automated system. This is our stance on transparency (developmentplan.md §2 C) and reduces post-call complaints + pre-empts deceptive-AI regulation.",
+      "requirement": "Within the first two agent turns, the agent must proactively state it is an AI assistant / automated system. This is our stance on transparency (docs/developer_plan.md §2 C) and reduces post-call complaints + pre-empts deceptive-AI regulation.",
       "severity": "mandatory",
       "detection": {
         "type": "first_n_turns_must_contain",
@@ -66,14 +66,30 @@
       "severity": "mandatory",
       "detection": {
         "type": "regex_any",
-        "triggers_product_discussion": ["balance transfer", "interest rate", "promotional rate", "kadar faedah", "faedah"],
+        "triggers_product_discussion": [
+          "balance transfer",
+          "interest rate",
+          "promotional rate",
+          "kadar faedah",
+          "faedah",
+          "pemindahan baki",
+          "利率",
+          "优惠利率",
+          "余额转移"
+        ],
         "must_contain_within_next_3_turns_any": [
           "effective interest rate",
           "standard rate of",
           "after (?:the )?promotional",
           "reverts? to",
           "kadar efektif",
-          "selepas tempoh promosi"
+          "kadar asal",
+          "selepas tempoh promosi",
+          "selepas (?:\\d+ )?bulan",
+          "实际利率",
+          "标准利率",
+          "优惠期后",
+          "恢复到"
         ]
       },
       "fire_on": "triggered_but_not_fulfilled",
@@ -134,13 +150,29 @@
         "triggers_any": [
           "bank negara",
           "akpk",
+          "(?:agensi )?kaunseling dan pengurusan kredit",
           "ministry of",
           "kementerian",
+          "kerajaan",
           "from the government",
-          "regulator"
+          "regulator",
+          "suruhanjaya",
+          "国家银行",
+          "马来西亚国行",
+          "政府部门",
+          "监管机构"
         ],
         "context": "agent",
-        "exception_if_accompanied_by": ["authorised by", "diwakili oleh", "not affiliated"]
+        "exception_if_accompanied_by": [
+          "authorised by",
+          "licensed by",
+          "diwakili oleh",
+          "dibenarkan oleh",
+          "not affiliated",
+          "bukan (?:wakil|daripada)",
+          "由.*授权",
+          "不(?:隶属|代表)"
+        ]
       },
       "fire_on": "trigger_matched_without_exception",
       "severity_on_miss": "critical"
@@ -169,6 +201,18 @@
       "fire_on": "exceeded_scope",
       "severity_on_miss": "critical",
       "audience": "internal_qa_only"
+    },
+    {
+      "id": "call_purpose_disclosure",
+      "title": "Call purpose disclosed before product detail",
+      "requirement": "Per BNM Fair Treatment Principle, the agent must state the purpose of the call (e.g. 'I'm calling about a balance-transfer offer') before discussing specific product terms, rates, or eligibility. Prevents bait-and-pitch tactics.",
+      "severity": "mandatory",
+      "detection": {
+        "type": "llm",
+        "prompt": "Did the agent state a concrete reason for the call (e.g. 'balance transfer offer', 'credit card promotion', 'pemindahan baki', 'tawaran kad kredit') before discussing specific rates or terms, OR before the customer asked? Return JSON {\"disclosed\": true/false, \"before_product_detail\": true/false, \"evidence\": \"verbatim quote or null\"}"
+      },
+      "fire_on": "disclosed_false_or_not_before_product_detail",
+      "severity_on_miss": "high"
     }
   ]
 }
